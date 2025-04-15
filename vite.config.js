@@ -17,7 +17,7 @@ export default defineConfig({
       input: {
         main: './index.html'
       },
-      external: ['./server.js']
+      // external: ['./server.js']
     }
   }
 })
