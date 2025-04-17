@@ -697,7 +697,8 @@ app.get('/api/clients/:clientId/folders/:folderId/files/:fileId', authenticateTo
       // Set headers
       res.setHeader('Content-Type', 'application/octet-stream');
       res.setHeader('Content-Length', stats.size);
-      res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+      const safeFileName = name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      res.setHeader('Content-Disposition', `attachment; filename="${safeFileName}"`);
 
       // Pipe file to response
       fileStream.pipe(res);
@@ -949,7 +950,8 @@ app.get('/api/shared/folder/:code/files/:fileId', async (req, res) => {
       // Set headers
       res.setHeader('Content-Type', 'application/octet-stream');
       res.setHeader('Content-Length', stats.size);
-      res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+      const safeFileName = name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      res.setHeader('Content-Disposition', `attachment; filename="${safeFileName}"`);
 
       // Pipe file to response
       fileStream.pipe(res);
