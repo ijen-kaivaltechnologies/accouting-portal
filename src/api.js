@@ -29,6 +29,12 @@ axiosInstance.interceptors.response.use(
         return response;
     },
     (error) => {
+
+        // ignore login response
+        if (error.config.url === '/login') {
+            return Promise.reject(error);
+        }
+
         if (error.response?.status === 401) {
             // Handle unauthorized access
             localStorage.removeItem('token');

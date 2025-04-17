@@ -188,24 +188,110 @@ app.get('/api/clients', authenticateToken, async (req, res) => {
 
 app.post('/api/clients', authenticateToken, async (req, res) => {
   try {
-    const { firstName, lastName, email } = req.body;
+    const { firstName, lastName, email, groupName, mobileNumber, city } = req.body;
     
     // Validate input
-    if (!firstName || !lastName || !email) {
-      return res.status(400).json({ error: 'All fields are required' });
+    if (!firstName || !lastName || !mobileNumber || !city) {
+      return res.status(400).json({ error: 'First name, last name, mobile number, and city are required' });
     }
 
+    // Validate mobile number (10 digits)
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(mobileNumber)) {
+      return res.status(400).json({ error: 'Invalid mobile number format' });
+    }
+
+    // Validate email if provided
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+    }
+    
     const client = await pool.connect();
+
+    // check if phone number is already in use
+    const phoneCheck = await client.query(
+      'SELECT * FROM clients WHERE mobile_number = $1',
+      [mobileNumber]
+    );
+    if (phoneCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Mobile number already in use' });
+    }
+
     try {
       await client.query('BEGIN');
       
       const result = await client.query(
-        'INSERT INTO clients (first_name, last_name, email) VALUES ($1, $2, $3) RETURNING *',
-        [firstName, lastName, email]
+        'INSERT INTO clients (first_name, last_name, email, group_name, mobile_number, city) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [firstName, lastName, email || null, groupName || null, mobileNumber, city]
       );
 
       await client.query('COMMIT');
       res.status(201).json(result.rows[0]);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error("Error creating client:", err);
+      res.status(400).json({ error: err.message });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error("Error creating client:", err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.put('/api/clients/:id', authenticateToken, async (req, res) => {
+  try {
+    const { firstName, lastName, email, groupName, mobileNumber, city, is_active } = req.body;
+    
+    // Validate input
+    if (!firstName || !lastName || !mobileNumber || !city) {
+      return res.status(400).json({ error: 'First name, last name, mobile number, and city are required' });
+    }
+
+    // Validate mobile number (10 digits)
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(mobileNumber)) {
+      return res.status(400).json({ error: 'Invalid mobile number format' });
+    }
+
+    // Validate email if provided
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+    }
+
+    const client = await pool.connect();
+
+    // check if phone number is already in use
+    const phoneCheck = await client.query(
+      'SELECT * FROM clients WHERE mobile_number = $1 AND id != $2',
+      [mobileNumber, req.params.id]
+    );
+    if (phoneCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Mobile number already in use' });
+    }
+
+    try {
+      await client.query('BEGIN');
+      
+      const result = await client.query(
+        'UPDATE clients SET first_name = $1, last_name = $2, email = $3, group_name = $4, mobile_number = $5, city = $6, is_active = $7, updated_at = CURRENT_TIMESTAMP WHERE id = $8 RETURNING *',
+        [firstName, lastName, email || null, groupName || null, mobileNumber, city, is_active ?? true, req.params.id]
+      );
+
+      if (result.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Client not found' });
+      }
+
+      await client.query('COMMIT');
+      res.json(result.rows[0]);
     } catch (err) {
       await client.query('ROLLBACK');
       res.status(400).json({ error: err.message });
@@ -231,37 +317,6 @@ app.get('/api/clients/:id', authenticateToken, async (req, res) => {
       }
 
       res.json(result.rows[0]);
-    } finally {
-      client.release();
-    }
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.put('/api/clients/:id', authenticateToken, async (req, res) => {
-  try {
-    const { firstName, lastName, email, is_active } = req.body;
-    
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      
-      const result = await client.query(
-        'UPDATE clients SET first_name = $1, last_name = $2, email = $3, is_active = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *',
-        [firstName, lastName, email, is_active || true, req.params.id]
-      );
-
-      if (result.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return res.status(404).json({ error: 'Client not found' });
-      }
-
-      await client.query('COMMIT');
-      res.json(result.rows[0]);
-    } catch (err) {
-      await client.query('ROLLBACK');
-      res.status(400).json({ error: err.message });
     } finally {
       client.release();
     }

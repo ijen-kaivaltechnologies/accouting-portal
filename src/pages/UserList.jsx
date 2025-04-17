@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { Users, LogOut, Plus, Trash2, Pencil,Search  } from "lucide-react";
+import { Users, LogOut, Plus, Trash2, Pencil, Search } from "lucide-react";
 import { api } from "../api";
 
 function UserList() {
@@ -13,6 +13,9 @@ function UserList() {
     firstName: "",
     lastName: "",
     email: "",
+    groupName: "",
+    mobileNumber: "",
+    city: "",
   });
   const [allClients, setAllClients] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,6 +40,30 @@ function UserList() {
     e.preventDefault();
     setLoading(true);
 
+    // Basic validation
+    if (
+      !formData.firstName ||
+      !formData.lastName ||
+      !formData.mobileNumber ||
+      !formData.city
+    ) {
+      alert("First name, last name, mobile number, and city are required.");
+      setLoading(false);
+      return;
+    }
+    // Validate mobile number
+    if (!/^\d{10}$/.test(formData.mobileNumber)) {
+      alert("Mobile number must be 10 digits.");
+      setLoading(false);
+      return;
+    }
+    // Validate email if provided
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      alert("Please enter a valid email address.");
+      setLoading(false);
+      return;
+    }
+
     try {
       await api.createClient(formData);
       setShowCreateForm(false);
@@ -44,8 +71,10 @@ function UserList() {
         firstName: "",
         lastName: "",
         email: "",
+        groupName: "",
+        mobileNumber: "",
+        city: "",
       });
-      // Fetch updated list after creating
       await fetchClients();
     } catch (error) {
       console.error("Error creating client:", error);
@@ -78,7 +107,7 @@ function UserList() {
     try {
       const response = await api.getClients();
       setClients(response.data);
-      setAllClients(response.data); 
+      setAllClients(response.data);
     } catch (error) {
       console.error("Error fetching clients:", error);
       alert("Failed to fetch clients. Please try again.");
@@ -92,6 +121,9 @@ function UserList() {
       firstName: client.first_name,
       lastName: client.last_name,
       email: client.email,
+      groupName: client.group_name || "",
+      mobileNumber: client.mobile_number || "",
+      city: client.city || "",
       is_active: client.is_active,
     });
     setEditClientId(client.id);
@@ -102,6 +134,30 @@ function UserList() {
     e.preventDefault();
     setLoading(true);
 
+    // Basic validation
+    if (
+      !formData.firstName ||
+      !formData.lastName ||
+      !formData.mobileNumber ||
+      !formData.city
+    ) {
+      alert("First name, last name, mobile number, and city are required.");
+      setLoading(false);
+      return;
+    }
+    // Validate mobile number
+    if (!/^\d{10}$/.test(formData.mobileNumber)) {
+      alert("Mobile number must be 10 digits.");
+      setLoading(false);
+      return;
+    }
+    // Validate email if provided
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      alert("Please enter a valid email address.");
+      setLoading(false);
+      return;
+    }
+
     try {
       await api.updateClient(editClientId, formData);
       setShowEditForm(false);
@@ -109,22 +165,32 @@ function UserList() {
         firstName: "",
         lastName: "",
         email: "",
+        groupName: "",
+        mobileNumber: "",
+        city: "",
       });
       setEditClientId(null);
       await fetchClients();
     } catch (error) {
       console.error("Error updating client:", error);
-      alert("Failed to update client. Please try again.");
+      let msg = error.message;
+
+      if(error?.response?.data?.error) {
+        msg = error.response.data.error;
+      }
+
+      alert(msg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   useEffect(() => {
@@ -155,7 +221,7 @@ function UserList() {
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
-          
+
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
             className="flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-900 transition duration-150 ease-in-out"
@@ -224,10 +290,61 @@ function UserList() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="groupName"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Group Name
+              </label>
+              <input
+                type="text"
+                id="groupName"
+                name="groupName"
+                value={formData.groupName}
+                onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="mobileNumber"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Mobile Number
+              </label>
+              <input
+                type="text"
+                id="mobileNumber"
+                name="mobileNumber"
+                value={formData.mobileNumber}
+                onChange={handleChange}
                 required
                 className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               />
             </div>
+            <div>
+              <label
+                htmlFor="city"
+                className="block text-sm font-medium text-gray-700"
+              >
+                City
+              </label>
+              <input
+                type="text"
+                id="city"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                required
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+            </div>
+
             <div className="flex justify-end space-x-3">
               <button
                 type="button"
@@ -298,6 +415,55 @@ function UserList() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="groupName"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Group Name
+              </label>
+              <input
+                type="text"
+                id="groupName"
+                name="groupName"
+                value={formData.groupName}
+                onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="mobileNumber"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Mobile Number
+              </label>
+              <input
+                type="text"
+                id="mobileNumber"
+                name="mobileNumber"
+                value={formData.mobileNumber}
+                onChange={handleChange}
+                required
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="city"
+                className="block text-sm font-medium text-gray-700"
+              >
+                City
+              </label>
+              <input
+                type="text"
+                id="city"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
                 required
                 className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               />
@@ -353,6 +519,9 @@ function UserList() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Sr
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -370,10 +539,15 @@ function UserList() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {clients.map((client) => (
+            {clients.map((client, index) => (
               <tr key={client.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">
+                    {index + 1}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
                     {client.first_name} {client.last_name}
                   </div>
                 </td>

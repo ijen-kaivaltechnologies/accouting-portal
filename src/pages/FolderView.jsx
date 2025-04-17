@@ -15,6 +15,7 @@ function FolderView() {
   const { userId, folderId } = useParams();
   const navigate = useNavigate();
   const [files, setFiles] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [editingFile, setEditingFile] = useState(null);
   const [newFileName, setNewFileName] = useState("");
@@ -38,8 +39,13 @@ function FolderView() {
     }
   };
 
-  const handleFileUpload = async (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files[0];
+    setSelectedFile(file);
+  };
+
+  const handleFileUpload = async () => {
+    const file = selectedFile;
     if (!file) return;
 
     try {
@@ -100,8 +106,12 @@ function FolderView() {
       setNewFileName("");
       setShowUploadDialog(false);
     } catch (error) {
+      let errorMessage = "Failed to update file. Please try again.";
+      if (error.response && error.response.data && error.response.data.error) {
+        errorMessage = error.response.data.error;
+      }
       console.error("Error updating file:", error);
-      alert("Failed to update file. Please try again.");
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -115,8 +125,12 @@ function FolderView() {
       await api.deleteFile(userId, folderId, fileId);
       await fetchFiles();
     } catch (error) {
+      let errorMessage = "Failed to delete file. Please try again.";
+      if (error.response && error.response.data && error.response.data.error) {
+        errorMessage = error.response.data.error;
+      }
       console.error("Error deleting file:", error);
-      alert("Failed to delete file. Please try again.");
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -134,8 +148,12 @@ function FolderView() {
           .catch(() => alert("Failed to copy link. Please copy manually."));
       }
     } catch (error) {
+      let errorMessage = "Failed to generate share link. Please try again.";
+      if (error.response && error.response.data && error.response.data.error) {
+        errorMessage = error.response.data.error;
+      }
       console.error("Error generating share link:", error);
-      alert("Failed to generate share link. Please try again.");
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -236,7 +254,7 @@ function FolderView() {
               <div className="mb-4">
                 <input
                   type="file"
-                  onChange={handleFileUpload}
+                  onChange={handleFileChange}
                   className="block w-full text-sm text-slate-500
                                 file:mr-4 file:py-2 file:px-4
                                 file:rounded-full file:border-0
@@ -275,11 +293,11 @@ function FolderView() {
                 onClick={
                   editingFile
                     ? handleUpdateFile
-                    : () => setShowUploadDialog(false)
+                    : handleFileUpload
                 }
                 className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition duration-150 ease-in-out"
               >
-                {editingFile ? "Update" : "Close"}
+                {editingFile ? "Update" : "Upload"}
               </button>
             </div>
           </div>
