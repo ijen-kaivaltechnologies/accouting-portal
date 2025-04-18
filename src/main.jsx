@@ -20,7 +20,7 @@ ReactDOM.createRoot(root).render(
   <BrowserRouter>
     <Routes>
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-      <Route path="/signup" element={<PublicRoute><SignUpPage /></PublicRoute>} />
+      {/* <Route path="/signup" element={<PublicRoute><SignUpPage /></PublicRoute>} /> */}
       <Route path="/shared/folder/:code" element={<FolderViewShared />} />
       
       {/* Protected routes */}

@@ -76,52 +76,52 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Routes
-app.post('/api/register', async (req, res) => {
-  try {
-    const { password, email, firstName, lastName, confirmPassword } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
+// app.post('/api/register', async (req, res) => {
+//   try {
+//     const { password, email, firstName, lastName, confirmPassword } = req.body;
+//     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const client = await pool.connect();
+//     const client = await pool.connect();
 
-    const fullName = `${firstName.toLowerCase()} ${lastName.toLowerCase()}`;
+//     const fullName = `${firstName.toLowerCase()} ${lastName.toLowerCase()}`;
 
-    if (password !== confirmPassword) {
-      return res.status(400).json({ error: 'Passwords do not match' });
-    } 
+//     if (password !== confirmPassword) {
+//       return res.status(400).json({ error: 'Passwords do not match' });
+//     } 
     
-    try {
-      await client.query('BEGIN');
+//     try {
+//       await client.query('BEGIN');
 
-      // validate user input
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      const passwordRegex =
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+//       // validate user input
+//       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+//       const passwordRegex =
+//         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ error: 'Invalid email' });
-      }
-      if (!passwordRegex.test(password)) {
-        return res.status(400).json({ error: 'Invalid password' });
-      }
+//       if (!emailRegex.test(email)) {
+//         return res.status(400).json({ error: 'Invalid email' });
+//       }
+//       if (!passwordRegex.test(password)) {
+//         return res.status(400).json({ error: 'Invalid password' });
+//       }
       
-      await client.query(
-        'INSERT INTO users (full_name, password, email) VALUES ($1, $2, $3) RETURNING id',
-        [fullName, hashedPassword, email]
-      );
+//       await client.query(
+//         'INSERT INTO users (full_name, password, email) VALUES ($1, $2, $3) RETURNING id',
+//         [fullName, hashedPassword, email]
+//       );
 
-      await client.query('COMMIT');
+//       await client.query('COMMIT');
       
-      res.status(201).json({ message: 'User registered successfully' });
-    } catch (err) {
-      await client.query('ROLLBACK');
-      res.status(400).json({ error: err.message });
-    } finally {
-      client.release();
-    }
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+//       res.status(201).json({ message: 'User registered successfully' });
+//     } catch (err) {
+//       await client.query('ROLLBACK');
+//       res.status(400).json({ error: err.message });
+//     } finally {
+//       client.release();
+//     }
+//   } catch (err) {
+//     res.status(500).json({ error: 'Server error' });
+//   }
+// });
 
 app.post('/api/login', async (req, res) => {
   try {
@@ -336,8 +336,26 @@ app.delete('/api/clients/:id', authenticateToken, async (req, res) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      
-      // delete
+
+      // delete folder links
+      await client.query(
+        'DELETE FROM folder_links WHERE client_id = $1',
+        [req.params.id]
+      );
+
+      //delete client folder files
+      await client.query(
+        'DELETE FROM client_folder_files WHERE folder_id IN (SELECT id FROM client_folders WHERE client_id = $1)',
+        [req.params.id]
+      );
+
+      // delete client folders
+      await client.query(
+        'DELETE FROM client_folders WHERE client_id = $1',
+        [req.params.id]
+      );
+
+      // delete client
       await client.query(
         'DELETE FROM clients WHERE id = $1',
         [req.params.id]
@@ -345,6 +363,14 @@ app.delete('/api/clients/:id', authenticateToken, async (req, res) => {
 
       await client.query('COMMIT');
       res.json({ message: 'Client deleted successfully' });
+
+      // delete client folder
+      const clientPath = getClientFolderPath(req.params.id);
+
+      if (fs.existsSync(clientPath)) {
+        await fs.promises.rm(clientPath, { recursive: true });
+      }
+      
     } catch (err) {
       await client.query('ROLLBACK');
       res.status(400).json({ error: err.message });

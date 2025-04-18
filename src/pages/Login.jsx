@@ -137,7 +137,7 @@ function Login() {
           </button>
         </form>
 
-        <p className="mt-8 text-center text-sm text-gray-200">
+        {/* <p className="mt-8 text-center text-sm text-gray-200">
           Don't have an account?{" "}
           <Link
             to="/signup"
@@ -145,7 +145,7 @@ function Login() {
           >
             Sign up now
           </Link>
-        </p>
+        </p> */}
       </div>
     </div>
   );
