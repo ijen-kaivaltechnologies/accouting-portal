@@ -6,6 +6,7 @@ const { Pool } = require('pg');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const sanitizeNames = require("sanitize-filename");
 
 const envSetup = require('./set-env.cjs');
 const checkRequirements = require('./check-reuirements.cjs');
@@ -41,8 +42,14 @@ const pool = new Pool({
   port: process.env.DB_PORT,
 });
 
+console.log(`Environment set to ${process.env.APP_ENV}`);
+console.log(`Node environment set to ${process.env.NODE_ENV}`);
+
 // Middleware
-app.use(cors());
+if (process.env.APP_ENV === 'dev') {
+  app.use(cors());
+}
+
 app.use(express.json());
 
 // Serve static files from the dist directory for routes not starting with '/api'
@@ -169,7 +176,6 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-
 
 // Client routes - all protected by authenticateToken middleware
 app.get('/api/clients', authenticateToken, async (req, res) => {
@@ -353,9 +359,37 @@ app.delete('/api/clients/:id', authenticateToken, async (req, res) => {
 // Get the base directory for client folders
 const CLIENT_FOLDERS_BASE = path.join(__dirname, 'client_folders');
 
+// Helper function to sanitize folder names
+function sanitizeFolderName(folderName) {
+  // First use the sanitize-filename package
+  let sanitized = sanitizeNames(folderName);
+  // Replace any remaining spaces with dashes for better URL compatibility
+  sanitized = sanitized.replace(/\s+/g, '-');
+  // Ensure we have a valid name even after sanitization
+  return sanitized || 'untitled-folder';
+}
+
+// Helper function to sanitize file names
+function sanitizeFileName(fileName) {
+  // Use the sanitize-filename package
+  let sanitized = sanitizeNames(fileName);
+  // Ensure we have a valid name even after sanitization
+  return sanitized || 'untitled-file';
+}
+
 // Helper function to get client folder path
 function getClientFolderPath(clientId) {
   return path.join(CLIENT_FOLDERS_BASE, clientId);
+}
+
+// Helper function to get full folder path
+function getFolderFullPath(clientId, folderName) {
+  return path.join(getClientFolderPath(clientId), sanitizeFolderName(folderName));
+}
+
+// Helper function to get file path
+function getFilePath(clientId, folderName, fileName) {
+  return path.join(getFolderFullPath(clientId, folderName), sanitizeFileName(fileName));
 }
 
 // Helper function to create client base directory if it doesn't exist
@@ -364,17 +398,6 @@ async function ensureClientDirectory(clientId) {
   if (!fs.existsSync(clientPath)) {
     await fs.promises.mkdir(clientPath, { recursive: true });
   }
-}
-
-// Helper function to get full folder path
-function getFolderFullPath(clientId, folderName) {
-  return path.join(getClientFolderPath(clientId), folderName);
-}
-
-
-// Helper function to get file path
-function getFilePath(clientId, folderName, fileName) {
-  return path.join(getFolderFullPath(clientId, folderName), fileName);
 }
 
 // Get all folders for a client
@@ -406,7 +429,10 @@ app.get('/api/clients/:clientId/folders', authenticateToken, async (req, res) =>
 // Create a new folder
 app.post('/api/clients/:clientId/folders', authenticateToken, async (req, res) => {
   try {
-    const { folderName } = req.body;
+    let { folderName } = req.body;
+
+    // Sanitize folder name
+    folderName = sanitizeFolderName(folderName);
 
     if (!folderName) {
       return res.status(400).json({ error: 'Folder name is required' });
@@ -449,7 +475,10 @@ app.post('/api/clients/:clientId/folders', authenticateToken, async (req, res) =
 // Update a folder (rename)
 app.put('/api/clients/:clientId/folders/:folderId', authenticateToken, async (req, res) => {
   try {
-    const { folderName } = req.body;
+    let { folderName } = req.body;
+
+    // Sanitize folder name
+    folderName = sanitizeFolderName(folderName);
 
     if (!folderName) {
       return res.status(400).json({ error: 'Folder name is required' });
@@ -523,17 +552,28 @@ app.delete('/api/clients/:clientId/folders/:folderId', authenticateToken, async 
       );
 
       if (result.rows.length === 0) {
-        await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Folder not found' });
       }
 
       const folderName = result.rows[0].folder_name;
       const folderPath = getFolderFullPath(req.params.clientId, folderName);
 
+      // delete files from the db
+      await client.query(
+        'DELETE FROM client_folder_files WHERE folder_id = $1',
+        [req.params.folderId]
+      );
+
       // Delete folder from filesystem
       if (fs.existsSync(folderPath)) {
         await fs.promises.rm(folderPath, { recursive: true });
       }
+
+      // delete folder links
+      await client.query(
+        'DELETE FROM folder_links WHERE folder_id = $1',
+        [req.params.folderId]
+      );
 
       // Delete from database
       const deleteResult = await client.query(
@@ -609,6 +649,9 @@ app.post('/api/clients/:clientId/folders/:folderId/files', authenticateToken, as
       return res.status(400).json({ error: 'File and filename are required' });
     }
 
+    // Sanitize file name
+    const sanitizedFileName = sanitizeFileName(fileName);
+
     // Check file size limit (25MB = 25 * 1024 * 1024 bytes)
     const maxSize = 25 * 1024 * 1024;
     const fileBuffer = Buffer.from(file, 'base64');
@@ -635,7 +678,7 @@ app.post('/api/clients/:clientId/folders/:folderId/files', authenticateToken, as
       }
 
       const folderName = result.rows[0].folder_name;
-      const filePath = getFilePath(req.params.clientId, folderName, fileName);
+      const filePath = getFilePath(req.params.clientId, folderName, sanitizedFileName);
 
       // Check if file already exists
       if (fs.existsSync(filePath)) {
@@ -652,7 +695,7 @@ app.post('/api/clients/:clientId/folders/:folderId/files', authenticateToken, as
       // Insert into database
       await client.query(
         'INSERT INTO client_folder_files (folder_id, name, relative_path, size, last_modified) VALUES ($1, $2, $3, $4, $5)',
-        [req.params.folderId, fileName, filePath, fileSize, new Date()]
+        [req.params.folderId, sanitizedFileName, filePath, fileSize, new Date()]
       );
 
       res.json({ message: 'File uploaded successfully' });
@@ -755,8 +798,11 @@ app.put('/api/clients/:clientId/folders/:folderId/files/:fileId', authenticateTo
   try {
     const { newFileName } = req.body;
 
-    if (!newFileName) {
-      return res.status(400).json({ error: 'New filename is required' });
+    // Sanitize new file name
+    const sanitizedNewFileName = sanitizeFileName(newFileName);
+
+    if (!sanitizedNewFileName) {
+      return res.status(400).json({ error: 'File name is required' });
     }
 
     const client = await pool.connect();
@@ -773,12 +819,12 @@ app.put('/api/clients/:clientId/folders/:folderId/files/:fileId', authenticateTo
       }
 
       const { relative_path: oldFilePath, name: oldFileName, folder_id } = fileResult.rows[0];
-      const newFilePath = oldFilePath.replace(oldFileName, newFileName);
+      const newFilePath = oldFilePath.replace(oldFileName, sanitizedNewFileName);
 
       // Check if new file already exists in database
       const existingFile = await client.query(
         'SELECT id FROM client_folder_files WHERE folder_id = $1 AND name = $2',
-        [folder_id, newFileName]
+        [folder_id, sanitizedNewFileName]
       );
 
       if (existingFile.rows.length > 0) {
@@ -791,7 +837,7 @@ app.put('/api/clients/:clientId/folders/:folderId/files/:fileId', authenticateTo
       // Update file record in database
       await client.query(
         'UPDATE client_folder_files SET name = $1, relative_path = $2, last_modified = CURRENT_TIMESTAMP WHERE id = $3',
-        [newFileName, newFilePath, req.params.fileId]
+        [sanitizedNewFileName, newFilePath, req.params.fileId]
       );
 
       res.json({ message: 'File renamed successfully' });
