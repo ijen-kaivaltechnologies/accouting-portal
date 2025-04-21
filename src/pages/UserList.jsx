@@ -514,7 +514,7 @@ function UserList() {
         </div>
       )}
 
-      <div className="bg-white shadow-md rounded-lg overflow-hidden">
+      <div className="bg-white shadow-md rounded-lg overflow-hidden overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -552,36 +552,36 @@ function UserList() {
                     {index + 1}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap max-w-xl">
+                    <div className="text-sm font-medium text-gray-900 break-words whitespace-normal">
                     {client.first_name} {client.last_name}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap max-w-xl">
+                    <div className="text-sm font-medium text-gray-900 break-words whitespace-normal">
                     {client.group_name}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap max-w-xl">
+                    <div className="text-sm font-medium text-gray-900 break-words whitespace-normal">
                     {client.mobile_number}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap max-w-xl">
+                    <div className="text-sm font-medium text-gray-900 break-words whitespace-normal">
                     {client.city}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500">{client.email}</div>
+                <td className="px-6 py-4 whitespace-nowrap max-w-xl">
+                  <div className="text-sm text-gray-500 max-w-xl break-words whitespace-normal">{client.email}</div>
                 </td>
                 
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap max-w-xl">
+                  <div className="text-sm text-gray-500 max-w-xl break-words whitespace-normal break-words whitespace-normal">
                     {new Date(client.created_at).toLocaleDateString()}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium max-w-xl">
                   <div className="flex items-center space-x-4">
                     <button
                       onClick={() => navigate(`/user/${client.id}`)}
