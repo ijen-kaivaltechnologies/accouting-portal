@@ -9,6 +9,7 @@ function UserList() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editClientId, setEditClientId] = useState(null);
+  const [storageUsageInMB, setStorageUsageInMB] = useState(0);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -20,6 +21,7 @@ function UserList() {
   const [allClients, setAllClients] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [clients, setClients] = useState([]);
+  const [completingClient, setCompletingClient] = useState(null);
 
   const handleSearch = (e) => {
     const query = e.target.value.toLowerCase();
@@ -29,7 +31,7 @@ function UserList() {
       const fullName = `${client.first_name} ${client.last_name}`;
       return (
         fullName.toLowerCase().includes(query) ||
-        client.email.toLowerCase().includes(query)
+        client?.email?.toLowerCase()?.includes(query)
       );
     });
 
@@ -193,8 +195,32 @@ function UserList() {
     }));
   };
 
+  const fetchStorageUsage = async () => {
+    try {
+      const response = await api.getStorageUsage();
+      setStorageUsageInMB(response.data.storageUsage);
+    } catch (error) {
+      console.error("Error fetching storage usage:", error);
+      alert("Failed to fetch storage usage. Please try again.");
+    }
+  };
+
+  const handleToggleComplete = async (clientId, currentStatus) => {
+    try {
+      setCompletingClient(clientId);
+      await api.completeClient(clientId, !currentStatus);
+      await fetchClients();
+    } catch (error) {
+      console.error("Error toggling client completion:", error);
+      alert("Failed to update client status. Please try again.");
+    } finally {
+      setCompletingClient(null);
+    }
+  };
+
   useEffect(() => {
     fetchClients();
+    fetchStorageUsage();
   }, []);
 
   const handleLogout = () => {
@@ -204,14 +230,18 @@ function UserList() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Storage Usage</h2>
+        <p className="text-gray-600">{storageUsageInMB.toFixed(2)} MB</p>
+      </div>
+      <div className="flex flex-col md:flex-row items-center justify-between mb-8">
         <div className="flex items-center">
           <Users className="h-8 w-8 text-indigo-600 mr-3" />
           <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative">
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          <div className="relative md:w-80">
             <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
             <input
               type="text"
@@ -518,6 +548,9 @@ function UserList() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Mark Complete
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Sr
               </th>
@@ -546,7 +579,21 @@ function UserList() {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {clients.map((client, index) => (
-              <tr key={client.id}>
+              <tr key={client.id} className={client.is_completed ? "bg-green-100" : ""}>
+                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium max-w-sm">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={client.is_completed}
+                      onChange={() => handleToggleComplete(client.id, client.is_completed)}
+                      disabled={completingClient === client.id}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer disabled:opacity-50"
+                    />
+                    <span className="ml-2 text-sm text-gray-500">
+                      {completingClient === client.id ? "Updating..." : ""}
+                    </span>
+                  </div>
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">
                     {index + 1}
@@ -581,6 +628,7 @@ function UserList() {
                     {new Date(client.created_at).toLocaleDateString()}
                   </div>
                 </td>
+               
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium max-w-xl">
                   <div className="flex items-center space-x-4">
                     <button

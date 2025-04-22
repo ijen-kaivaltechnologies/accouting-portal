@@ -146,7 +146,7 @@ app.post('/api/login', async (req, res) => {
       }
 
       const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-        expiresIn: '24h',
+        expiresIn: '30min',
       });
 
       res.json({ token, fullName: user.full_name });
@@ -216,15 +216,6 @@ app.post('/api/clients', authenticateToken, async (req, res) => {
     }
     
     const client = await pool.connect();
-
-    // check if phone number is already in use
-    const phoneCheck = await client.query(
-      'SELECT * FROM clients WHERE mobile_number = $1',
-      [mobileNumber]
-    );
-    if (phoneCheck.rows.length > 0) {
-      return res.status(400).json({ error: 'Mobile number already in use' });
-    }
 
     try {
       await client.query('BEGIN');
@@ -305,6 +296,41 @@ app.put('/api/clients/:id', authenticateToken, async (req, res) => {
       client.release();
     }
   } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// toggle complete flag
+app.put('/api/clients/:id/complete', authenticateToken, async (req, res) => {
+  try {
+    const { is_completed } = req.body;
+
+    const client = await pool.connect();
+
+    try {
+
+
+      await client.query('BEGIN');
+      
+      const result = await client.query(
+        'UPDATE clients SET is_completed = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+        [is_completed, req.params.id]
+      );
+
+      await client.query('COMMIT');
+      res.json(result.rows[0]);
+      
+    } catch (err) {
+      console.error("Error toggling client completion:", err);
+      await client.query('ROLLBACK');
+      res.status(400).json({ error: err.message });
+    } finally {
+      client.release();
+    }
+
+   
+  } catch (err) {
+    console.error("Error toggling client completion:", err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -425,6 +451,19 @@ async function ensureClientDirectory(clientId) {
     await fs.promises.mkdir(clientPath, { recursive: true });
   }
 }
+
+
+// get stoage usage of the client folder
+app.get('/api/storage', authenticateToken, async(req, res) =>{
+  const client = await pool.connect();
+  const allUploadedFileSizes = await client.query('SELECT SUM(size) FROM client_folder_files');
+
+  const bytes = allUploadedFileSizes.rows?.[0]?.sum || 0;
+
+  const MB = bytes / (1024 * 1024);
+
+  res.json({ storageUsage: MB });
+})
 
 // Get all folders for a client
 app.get('/api/clients/:clientId/folders', authenticateToken, async (req, res) => {

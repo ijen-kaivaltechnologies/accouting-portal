@@ -51,6 +51,7 @@ export const api = {
     
     // Protected routes
     profile: () => axiosInstance.get('/profile'),
+    getStorageUsage: () => axiosInstance.get(`/storage`),
 
     // Client routes
     getClients: () => axiosInstance.get('/clients'),
@@ -58,6 +59,7 @@ export const api = {
     getClient: (id) => axiosInstance.get(`/clients/${id}`),
     updateClient: (id, clientData) => axiosInstance.put(`/clients/${id}`, clientData),
     deleteClient: (id) => axiosInstance.delete(`/clients/${id}`),
+    completeClient: (id, is_completed) => axiosInstance.put(`/clients/${id}/complete`, { is_completed }),
 
     // Client folder routes
     getClientFolders: (clientId) => axiosInstance.get(`/clients/${clientId}/folders`),
