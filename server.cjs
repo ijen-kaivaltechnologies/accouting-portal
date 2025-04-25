@@ -180,9 +180,10 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
 // Client routes - all protected by authenticateToken middleware
 app.get('/api/clients', authenticateToken, async (req, res) => {
   try {
+    const userId = req.user.id
     const client = await pool.connect();
     try {
-      const result = await client.query('SELECT * FROM clients ORDER BY created_at DESC');
+      const result = await client.query('SELECT * FROM clients WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
       res.json(result.rows);
     } finally {
       client.release();
@@ -194,6 +195,9 @@ app.get('/api/clients', authenticateToken, async (req, res) => {
 
 app.post('/api/clients', authenticateToken, async (req, res) => {
   try {
+
+    const userId = req.user.id
+
     const { firstName, lastName, email, groupName, mobileNumber, city } = req.body;
     
     // Validate input
@@ -221,8 +225,8 @@ app.post('/api/clients', authenticateToken, async (req, res) => {
       await client.query('BEGIN');
       
       const result = await client.query(
-        'INSERT INTO clients (first_name, last_name, email, group_name, mobile_number, city) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [firstName, lastName, email || null, groupName || null, mobileNumber, city]
+        'INSERT INTO clients (user_id, first_name, last_name, email, group_name, mobile_number, city) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+        [userId, firstName, lastName, email || null, groupName || null, mobileNumber, city]
       );
 
       await client.query('COMMIT');
@@ -456,13 +460,22 @@ async function ensureClientDirectory(clientId) {
 // get stoage usage of the client folder
 app.get('/api/storage', authenticateToken, async(req, res) =>{
   const client = await pool.connect();
-  const allUploadedFileSizes = await client.query('SELECT SUM(size) FROM client_folder_files');
+
+  const q = `SELECT SUM(CFF.size) AS sum FROM client_folder_files CFF
+            INNER JOIN client_folders CF ON CFF.folder_id = CF.id
+            INNER JOIN clients C ON CF.client_id = C.id
+            WHERE C.user_id = $1
+            `;
+
+  const allUploadedFileSizes = await client.query(q, [req.user.id]);
 
   const bytes = allUploadedFileSizes.rows?.[0]?.sum || 0;
 
   const MB = bytes / (1024 * 1024);
 
   res.json({ storageUsage: MB });
+
+  client.release();
 })
 
 // Get all folders for a client
