@@ -1,0 +1,288 @@
+-- ============================================================
+-- STEP 1: extend existing users table (non-breaking)
+-- ============================================================
+ALTER TABLE public.users
+  ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'admin'
+    CHECK (role IN ('admin', 'staff'));
+
+-- ============================================================
+-- STEP 2: service_categories
+-- ============================================================
+CREATE TABLE public.service_categories (
+  id         SERIAL PRIMARY KEY,
+  name       VARCHAR(100) NOT NULL,
+  slug       VARCHAR(100) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT service_categories_name_key UNIQUE (name),
+  CONSTRAINT service_categories_slug_key UNIQUE (slug)
+);
+
+CREATE TRIGGER trg_service_categories_updated_at
+  BEFORE UPDATE ON public.service_categories
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+INSERT INTO public.service_categories (name, slug) VALUES
+  ('GST Return File',        'gst_return'),
+  ('TDS Return File',        'tds_return'),
+  ('Income Tax Return File', 'itr_return'),
+  ('PAN',                    'pan'),
+  ('MSME',                   'msme');
+
+-- ============================================================
+-- STEP 3: service_plans
+-- ============================================================
+CREATE TABLE public.service_plans (
+  id               SERIAL PRIMARY KEY,
+  category_id      INTEGER NOT NULL REFERENCES public.service_categories(id) ON DELETE CASCADE,
+  name             VARCHAR(150) NOT NULL,
+  original_price   NUMERIC(10,2) NOT NULL CHECK (original_price >= 0),
+  discount_percent NUMERIC(5,2)  NOT NULL DEFAULT 0 CHECK (discount_percent >= 0),
+  discounted_price NUMERIC(10,2) NOT NULL CHECK (discounted_price >= 0),
+  commission_amount NUMERIC(10,2) NOT NULL CHECK (commission_amount >= 0),
+  is_active        BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at       TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updated_at       TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT chk_discounted_lte_original CHECK (discounted_price <= original_price)
+);
+
+CREATE TRIGGER trg_service_plans_updated_at
+  BEFORE UPDATE ON public.service_plans
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- Seed plans
+-- Note: commission_amount = original_price - discounted_price (spec values used as-is)
+DO $$
+DECLARE
+  cat_gst  INT; cat_tds INT; cat_itr INT; cat_pan INT; cat_msme INT;
+BEGIN
+  SELECT id INTO cat_gst  FROM public.service_categories WHERE slug = 'gst_return';
+  SELECT id INTO cat_tds  FROM public.service_categories WHERE slug = 'tds_return';
+  SELECT id INTO cat_itr  FROM public.service_categories WHERE slug = 'itr_return';
+  SELECT id INTO cat_pan  FROM public.service_categories WHERE slug = 'pan';
+  SELECT id INTO cat_msme FROM public.service_categories WHERE slug = 'msme';
+
+  INSERT INTO public.service_plans (category_id, name, original_price, discount_percent, discounted_price, commission_amount) VALUES
+    -- GST
+    (cat_gst,  'GST Monthly',                              1000,  5,    950,   50),
+    (cat_gst,  'GST Quarterly',                            3000,  10,   2700,  300),
+    (cat_gst,  'GST Yearly',                               12000, 15,   10200, 1800),
+    -- TDS
+    (cat_tds,  'TDS Quarter 1',                            1500,  5,    1425,  75),
+    (cat_tds,  'TDS Yearly',                               6000,  10,   5400,  600),
+    -- ITR (discounted prices per spec; commission = original - discounted)
+    (cat_itr,  'Salary Return',                            350,   5,    332,   18),
+    (cat_itr,  'Business & Profession',                    750,   10,   675,   75),
+    (cat_itr,  'Business & Profession With Share Market',  1250,  15,   1063,  187),
+    -- PAN
+    (cat_pan,  'Pan Card',                                 150,   6.5,  140,   10),
+    -- MSME (price TBD, set to 0)
+    (cat_msme, 'MSME Certificate',                         0,     0,    0,     0);
+END $$;
+
+-- ============================================================
+-- STEP 4: plan_document_requirements
+-- ============================================================
+CREATE TABLE public.plan_document_requirements (
+  id          SERIAL PRIMARY KEY,
+  plan_id     INTEGER NOT NULL REFERENCES public.service_plans(id) ON DELETE CASCADE,
+  label       VARCHAR(150) NOT NULL,
+  field_type  VARCHAR(10)  NOT NULL CHECK (field_type IN ('pdf', 'excel', 'text')),
+  month_index SMALLINT,    -- 1-12 for GST yearly, 1-3 for quarterly, NULL otherwise
+  is_optional BOOLEAN NOT NULL DEFAULT FALSE,
+  sort_order  SMALLINT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Seed document requirements
+DO $$
+DECLARE
+  p INT; m INT;
+BEGIN
+  -- GST Monthly
+  SELECT id INTO p FROM public.service_plans WHERE name = 'GST Monthly';
+  INSERT INTO public.plan_document_requirements (plan_id, label, field_type, sort_order) VALUES
+    (p, 'GSTR-1',  'pdf', 1),
+    (p, 'GSTR-3B', 'pdf', 2);
+
+  -- GST Quarterly (3 months × 2 docs)
+  SELECT id INTO p FROM public.service_plans WHERE name = 'GST Quarterly';
+  FOR m IN 1..3 LOOP
+    INSERT INTO public.plan_document_requirements (plan_id, label, field_type, month_index, sort_order) VALUES
+      (p, 'GSTR-1',  'pdf', m, (m-1)*2 + 1),
+      (p, 'GSTR-3B', 'pdf', m, (m-1)*2 + 2);
+  END LOOP;
+
+  -- GST Yearly (12 months × 2 docs)
+  SELECT id INTO p FROM public.service_plans WHERE name = 'GST Yearly';
+  FOR m IN 1..12 LOOP
+    INSERT INTO public.plan_document_requirements (plan_id, label, field_type, month_index, sort_order) VALUES
+      (p, 'GSTR-1',  'pdf', m, (m-1)*2 + 1),
+      (p, 'GSTR-3B', 'pdf', m, (m-1)*2 + 2);
+  END LOOP;
+
+  -- TDS Quarter 1
+  SELECT id INTO p FROM public.service_plans WHERE name = 'TDS Quarter 1';
+  INSERT INTO public.plan_document_requirements (plan_id, label, field_type, sort_order) VALUES
+    (p, 'TDS Q1 Chart', 'excel', 1);
+
+  -- TDS Yearly
+  SELECT id INTO p FROM public.service_plans WHERE name = 'TDS Yearly';
+  INSERT INTO public.plan_document_requirements (plan_id, label, field_type, sort_order) VALUES
+    (p, 'TDS Q1 Chart', 'excel', 1),
+    (p, 'TDS Q2 Chart', 'excel', 2),
+    (p, 'TDS Q3 Chart', 'excel', 3),
+    (p, 'TDS Q4 Chart', 'excel', 4);
+
+  -- ITR Salary Return
+  SELECT id INTO p FROM public.service_plans WHERE name = 'Salary Return';
+  INSERT INTO public.plan_document_requirements (plan_id, label, field_type, is_optional, sort_order) VALUES
+    (p, 'Aadhar Card',         'pdf', FALSE, 1),
+    (p, 'Pan Card',            'pdf', FALSE, 2),
+    (p, 'All Bank Statements', 'pdf', FALSE, 3),
+    (p, 'Form 16',             'pdf', FALSE, 4),
+    (p, 'Other',               'pdf', TRUE,  5);
+
+  -- ITR Business & Profession
+  SELECT id INTO p FROM public.service_plans WHERE name = 'Business & Profession';
+  INSERT INTO public.plan_document_requirements (plan_id, label, field_type, is_optional, sort_order) VALUES
+    (p, 'Aadhar Card',                    'pdf', FALSE, 1),
+    (p, 'Pan Card',                       'pdf', FALSE, 2),
+    (p, 'All Bank Details',               'pdf', FALSE, 3),
+    (p, 'GST Returns (if applicable)',    'pdf', TRUE,  4),
+    (p, 'TDS Details (Form 26AS)',        'pdf', FALSE, 5),
+    (p, 'Investment Proofs (Deductions)', 'pdf', FALSE, 6),
+    (p, 'Other',                          'pdf', TRUE,  7);
+
+  -- ITR Business & Profession With Share Market
+  SELECT id INTO p FROM public.service_plans WHERE name = 'Business & Profession With Share Market';
+  INSERT INTO public.plan_document_requirements (plan_id, label, field_type, is_optional, sort_order) VALUES
+    (p, 'Aadhar Card',                    'pdf', FALSE, 1),
+    (p, 'Pan Card',                       'pdf', FALSE, 2),
+    (p, 'All Bank Statements',            'pdf', FALSE, 3),
+    (p, 'GST Returns (if applicable)',    'pdf', TRUE,  4),
+    (p, 'TDS Details (Form 26AS)',        'pdf', FALSE, 5),
+    (p, 'Investment Proofs (Deductions)', 'pdf', FALSE, 6),
+    (p, 'All Share Market Details',       'pdf', FALSE, 7),
+    (p, 'Other',                          'pdf', TRUE,  8);
+
+  -- PAN Card
+  SELECT id INTO p FROM public.service_plans WHERE name = 'Pan Card';
+  INSERT INTO public.plan_document_requirements (plan_id, label, field_type, is_optional, sort_order) VALUES
+    (p, 'Aadhar Card',     'pdf', FALSE, 1),
+    (p, 'DOB Certificate', 'pdf', FALSE, 2),
+    (p, 'Other Doc',       'pdf', TRUE,  3);
+
+  -- MSME Certificate (text fields + pdfs)
+  SELECT id INTO p FROM public.service_plans WHERE name = 'MSME Certificate';
+  INSERT INTO public.plan_document_requirements (plan_id, label, field_type, sort_order) VALUES
+    (p, 'Firm Name',             'text', 1),
+    (p, 'Date of Incorporation', 'text', 2),
+    (p, 'Business Type',         'text', 3),
+    (p, 'Pan Card',              'pdf',  4),
+    (p, 'Aadhar Card',           'pdf',  5),
+    (p, 'Bank Details',          'pdf',  6);
+END $$;
+
+-- ============================================================
+-- STEP 5: referrers
+-- ============================================================
+CREATE TABLE public.referrers (
+  id                      SERIAL PRIMARY KEY,
+  full_name               VARCHAR(100) NOT NULL,
+  password                VARCHAR(255) NOT NULL,   -- bcrypt hash
+  dob                     DATE NOT NULL,
+  address                 TEXT NOT NULL,
+  mobile                  VARCHAR(10) NOT NULL,
+  email                   VARCHAR(100) NOT NULL,
+  pan_no                  VARCHAR(10) NOT NULL,
+  aadhar_no               VARCHAR(12) NOT NULL,
+  aadhar_file_path        VARCHAR(512) NOT NULL,
+  pan_file_path           VARCHAR(512) NOT NULL,
+  bank_cancel_check_path  VARCHAR(512) NOT NULL,
+  status                  VARCHAR(20) NOT NULL DEFAULT 'pending'
+                            CHECK (status IN ('pending', 'approved', 'rejected')),
+  reviewed_by             INTEGER REFERENCES public.users(id) ON DELETE SET NULL,
+  reviewed_at             TIMESTAMPTZ,
+  created_at              TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updated_at              TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT referrers_email_key  UNIQUE (email),
+  CONSTRAINT referrers_mobile_key UNIQUE (mobile),
+  CONSTRAINT referrers_pan_key    UNIQUE (pan_no),
+  CONSTRAINT referrers_aadhar_key UNIQUE (aadhar_no),
+  -- format constraints (validation layer, not a substitute for app-level checks)
+  CONSTRAINT chk_mobile_10digits  CHECK (mobile   ~ '^\d{10}$'),
+  CONSTRAINT chk_pan_format       CHECK (pan_no   ~ '^[A-Z]{5}[0-9]{4}[A-Z]$'),
+  CONSTRAINT chk_aadhar_12digits  CHECK (aadhar_no ~ '^\d{12}$')
+);
+
+CREATE TRIGGER trg_referrers_updated_at
+  BEFORE UPDATE ON public.referrers
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- ============================================================
+-- STEP 6: referral_requests
+-- ============================================================
+CREATE TABLE public.referral_requests (
+  id              SERIAL PRIMARY KEY,
+  referrer_id     INTEGER NOT NULL REFERENCES public.referrers(id) ON DELETE CASCADE,
+  plan_id         INTEGER NOT NULL REFERENCES public.service_plans(id),
+  customer_name   VARCHAR(150) NOT NULL,
+  customer_mobile VARCHAR(10),
+  status          VARCHAR(20) NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending', 'approved', 'rejected')),
+  admin_note      TEXT,
+  reviewed_by     INTEGER REFERENCES public.users(id) ON DELETE SET NULL,
+  reviewed_at     TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TRIGGER trg_referral_requests_updated_at
+  BEFORE UPDATE ON public.referral_requests
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- ============================================================
+-- STEP 7: referral_request_documents
+-- ============================================================
+CREATE TABLE public.referral_request_documents (
+  id             SERIAL PRIMARY KEY,
+  request_id     INTEGER NOT NULL REFERENCES public.referral_requests(id) ON DELETE CASCADE,
+  requirement_id INTEGER NOT NULL REFERENCES public.plan_document_requirements(id),
+  file_path      VARCHAR(512),   -- for pdf / excel field_type
+  text_value     TEXT,           -- for text field_type (MSME)
+  month_index    SMALLINT,       -- mirrors requirement month_index; denormalised for query convenience
+  created_at     TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+  -- exactly one of file_path or text_value must be present
+  CONSTRAINT chk_value_present CHECK (
+    (file_path IS NOT NULL AND text_value IS NULL) OR
+    (file_path IS NULL     AND text_value IS NOT NULL)
+  ),
+  -- one document row per requirement per request
+  CONSTRAINT uq_request_requirement UNIQUE (request_id, requirement_id)
+);
+
+-- ============================================================
+-- STEP 8: finance_entries
+-- ============================================================
+CREATE TABLE public.finance_entries (
+  id               SERIAL PRIMARY KEY,
+  request_id       INTEGER NOT NULL UNIQUE REFERENCES public.referral_requests(id),
+  referrer_id      INTEGER NOT NULL REFERENCES public.referrers(id),
+  plan_id          INTEGER NOT NULL REFERENCES public.service_plans(id),
+  plan_name        VARCHAR(150) NOT NULL,    -- snapshot: plan name at approval time
+  original_price   NUMERIC(10,2) NOT NULL,  -- snapshot: locked at approval
+  discounted_price NUMERIC(10,2) NOT NULL,  -- snapshot: locked at approval
+  commission_earned NUMERIC(10,2) NOT NULL, -- = original_price - discounted_price
+  created_at       TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- Indexes (for common query patterns)
+-- ============================================================
+CREATE INDEX idx_referral_requests_referrer  ON public.referral_requests(referrer_id);
+CREATE INDEX idx_referral_requests_status    ON public.referral_requests(status);
+CREATE INDEX idx_finance_entries_referrer    ON public.finance_entries(referrer_id);
+CREATE INDEX idx_plan_doc_reqs_plan          ON public.plan_document_requirements(plan_id);
