@@ -7,9 +7,11 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const sanitizeNames = require("sanitize-filename");
+const helmet = require('helmet');
 
 const envSetup = require('./set-env.cjs');
 const checkRequirements = require('./check-reuirements.cjs');
+const referrerRouter = require("./referrer.routes.cjs");
 
 const args = process.argv.slice(2);
 envSetup.init(args[0]);
@@ -28,6 +30,9 @@ checkRequirements.check().then(() => {
 // Increase body size limit to 25MB
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ limit: '25mb', extended: true }));
+
+// Basic Security Headers (disable CSP to avoid breaking React frontend)
+app.use(helmet({ contentSecurityPolicy: false }));
 
 // Serve static files from dist folder
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -75,6 +80,10 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Initialize Referrer Routes
+// const referrerRoutes = require('./referrer_routes.cjs');
+// referrerRoutes(app, pool, authenticateToken);
+
 // Routes
 // app.post('/api/register', async (req, res) => {
 //   try {
@@ -88,7 +97,7 @@ const authenticateToken = (req, res, next) => {
 //     if (password !== confirmPassword) {
 //       return res.status(400).json({ error: 'Passwords do not match' });
 //     } 
-    
+
 //     try {
 //       await client.query('BEGIN');
 
@@ -103,14 +112,14 @@ const authenticateToken = (req, res, next) => {
 //       if (!passwordRegex.test(password)) {
 //         return res.status(400).json({ error: 'Invalid password' });
 //       }
-      
+
 //       await client.query(
 //         'INSERT INTO users (full_name, password, email) VALUES ($1, $2, $3) RETURNING id',
 //         [fullName, hashedPassword, email]
 //       );
 
 //       await client.query('COMMIT');
-      
+
 //       res.status(201).json({ message: 'User registered successfully' });
 //     } catch (err) {
 //       await client.query('ROLLBACK');
@@ -126,7 +135,7 @@ const authenticateToken = (req, res, next) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     const client = await pool.connect();
     try {
       const result = await client.query(
@@ -199,7 +208,7 @@ app.post('/api/clients', authenticateToken, async (req, res) => {
     const userId = req.user.id
 
     const { firstName, lastName, email, groupName, mobileNumber, city } = req.body;
-    
+
     // Validate input
     if (!firstName || !lastName || !mobileNumber || !city) {
       return res.status(400).json({ error: 'First name, last name, mobile number, and city are required' });
@@ -218,12 +227,12 @@ app.post('/api/clients', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'Invalid email format' });
       }
     }
-    
+
     const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
-      
+
       const result = await client.query(
         'INSERT INTO clients (user_id, first_name, last_name, email, group_name, mobile_number, city) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
         [userId, firstName, lastName, email || null, groupName || null, mobileNumber, city]
@@ -247,7 +256,7 @@ app.post('/api/clients', authenticateToken, async (req, res) => {
 app.put('/api/clients/:id', authenticateToken, async (req, res) => {
   try {
     const { firstName, lastName, email, groupName, mobileNumber, city, is_active } = req.body;
-    
+
     // Validate input
     if (!firstName || !lastName || !mobileNumber || !city) {
       return res.status(400).json({ error: 'First name, last name, mobile number, and city are required' });
@@ -280,7 +289,7 @@ app.put('/api/clients/:id', authenticateToken, async (req, res) => {
 
     try {
       await client.query('BEGIN');
-      
+
       const result = await client.query(
         'UPDATE clients SET first_name = $1, last_name = $2, email = $3, group_name = $4, mobile_number = $5, city = $6, is_active = $7, updated_at = CURRENT_TIMESTAMP WHERE id = $8 RETURNING *',
         [firstName, lastName, email || null, groupName || null, mobileNumber, city, is_active ?? true, req.params.id]
@@ -315,7 +324,7 @@ app.put('/api/clients/:id/complete', authenticateToken, async (req, res) => {
 
 
       await client.query('BEGIN');
-      
+
       const result = await client.query(
         'UPDATE clients SET is_completed = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
         [is_completed, req.params.id]
@@ -323,7 +332,7 @@ app.put('/api/clients/:id/complete', authenticateToken, async (req, res) => {
 
       await client.query('COMMIT');
       res.json(result.rows[0]);
-      
+
     } catch (err) {
       console.error("Error toggling client completion:", err);
       await client.query('ROLLBACK');
@@ -332,7 +341,7 @@ app.put('/api/clients/:id/complete', authenticateToken, async (req, res) => {
       client.release();
     }
 
-   
+
   } catch (err) {
     console.error("Error toggling client completion:", err);
     res.status(500).json({ error: 'Server error' });
@@ -400,7 +409,7 @@ app.delete('/api/clients/:id', authenticateToken, async (req, res) => {
       if (fs.existsSync(clientPath)) {
         await fs.promises.rm(clientPath, { recursive: true });
       }
-      
+
     } catch (err) {
       await client.query('ROLLBACK');
       res.status(400).json({ error: err.message });
@@ -458,7 +467,7 @@ async function ensureClientDirectory(clientId) {
 
 
 // get stoage usage of the client folder
-app.get('/api/storage', authenticateToken, async(req, res) =>{
+app.get('/api/storage', authenticateToken, async (req, res) => {
   const client = await pool.connect();
 
   const q = `SELECT SUM(CFF.size) AS sum FROM client_folder_files CFF
@@ -487,7 +496,7 @@ app.get('/api/clients/:clientId/folders', authenticateToken, async (req, res) =>
         'SELECT * FROM client_folders WHERE client_id = $1 ORDER BY created_at DESC',
         [req.params.clientId]
       );
-      
+
       // Check if all folders exist on filesystem
       const folders = result.rows.map(folder => {
         const folderPath = getFolderFullPath(req.params.clientId, folder.folder_name);
@@ -540,7 +549,7 @@ app.post('/api/clients/:clientId/folders', authenticateToken, async (req, res) =
     } catch (err) {
       await client.query('ROLLBACK');
       // Clean up the created folder if DB operation fails
-      await fs.promises.rmdir(folderPath).catch(() => {});
+      await fs.promises.rmdir(folderPath).catch(() => { });
       res.status(400).json({ error: err.message });
     } finally {
       client.release();
@@ -599,7 +608,7 @@ app.put('/api/clients/:clientId/folders/:folderId', authenticateToken, async (re
       if (updateResult.rows.length === 0) {
         await client.query('ROLLBACK');
         // Rollback filesystem change if DB update fails
-        await fs.promises.rename(newFolderPath, oldFolderPath).catch(() => {});
+        await fs.promises.rename(newFolderPath, oldFolderPath).catch(() => { });
         return res.status(404).json({ error: 'Folder not found' });
       }
 
@@ -736,7 +745,7 @@ app.post('/api/clients/:clientId/folders/:folderId/files', authenticateToken, as
     const fileSize = fileBuffer.length;
 
     if (fileSize > maxSize) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'File size exceeds the maximum limit of 25MB',
         maxSize: maxSize,
         uploadedSize: fileSize
@@ -1087,6 +1096,8 @@ app.get('/api/shared/folder/:code/files/:fileId', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+app.use("/api", referrerRouter(pool));
 
 // Serve index.html for all other routes
 app.get('*', (req, res) => {

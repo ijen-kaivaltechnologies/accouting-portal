@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { Users, LogOut, Plus, Trash2, Pencil, Search } from "lucide-react";
+import { Users, LogOut, Plus, Trash2, Pencil, Search, FileText } from "lucide-react";
 import { api } from "../api";
 
 function UserList() {
@@ -9,7 +9,6 @@ function UserList() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editClientId, setEditClientId] = useState(null);
-  const [storageUsageInMB, setStorageUsageInMB] = useState(0);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -195,16 +194,6 @@ function UserList() {
     }));
   };
 
-  const fetchStorageUsage = async () => {
-    try {
-      const response = await api.getStorageUsage();
-      setStorageUsageInMB(response.data.storageUsage);
-    } catch (error) {
-      console.error("Error fetching storage usage:", error);
-      alert("Failed to fetch storage usage. Please try again.");
-    }
-  };
-
   const handleToggleComplete = async (clientId, currentStatus) => {
     try {
       setCompletingClient(clientId);
@@ -220,27 +209,18 @@ function UserList() {
 
   useEffect(() => {
     fetchClients();
-    fetchStorageUsage();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
+
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Storage Usage</h2>
-        <p className="text-gray-600">{storageUsageInMB.toFixed(2)} MB</p>
-      </div>
+    <div className="container mx-auto">
       <div className="flex flex-col md:flex-row items-center justify-between mb-8">
         <div className="flex items-center">
-          <Users className="h-8 w-8 text-indigo-600 mr-3" />
-          <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
+          <h1 className="text-2xl font-bold text-gray-900 hidden md:block">Clients</h1>
         </div>
 
-        <div className="flex flex-col md:flex-row items-center gap-4">
+        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <div className="relative md:w-80">
             <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
             <input
@@ -260,13 +240,7 @@ function UserList() {
             Add Client
           </button>
 
-          <button
-            onClick={handleLogout}
-            className="flex items-center text-sm font-medium text-red-600 hover:text-red-900 transition duration-150 ease-in-out"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </button>
+
         </div>
       </div>
 
