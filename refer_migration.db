@@ -77,7 +77,7 @@ BEGIN
     -- PAN
     (cat_pan,  'Pan Card',                                 150,   6.5,  140,   10),
     -- MSME (price TBD, set to 0)
-    (cat_msme, 'MSME Certificate',                         0,     0,    0,     0);
+    (cat_msme, 'MSME Certificate',                         300,   10,   270,   30);
 END $$;
 
 -- ============================================================
