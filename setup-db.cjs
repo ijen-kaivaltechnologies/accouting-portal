@@ -8,8 +8,9 @@ dotenv.config({
 
 // Read the SQL file
 const sql = fs.readFileSync('./freshdb', 'utf-8');
+const refer = fs.readFileSync('./refer_migration.db', 'utf-8');
 
-if (!sql) {
+if (!sql || !refer) {
   console.error('SQL file not found');
   process.exit(1);
 }
@@ -37,10 +38,21 @@ async function setupDatabase() {
   try {
     // Connect to the database
     const client = await pool.connect();
-    
+
     try {
       // Execute the SQL file
-      await client.query(sql);
+      try {
+        await client.query(sql);
+        console.log('SQL file executed successfully');
+      } catch (error) {
+        console.log(error);
+      }
+      try {
+        await client.query(refer);
+        console.log('Refer SQL file executed successfully');
+      } catch (error) {
+        console.log(error);
+      }
       console.log('Database setup completed successfully');
     } finally {
       client.release();
