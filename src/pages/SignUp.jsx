@@ -208,15 +208,28 @@ function SignUp() {
           </button>
         </form>
 
-        <p className="mt-8 text-center text-sm text-gray-200">
-          Already have an account?{" "}
-          <Link
-            to="/login"
-            className="font-medium text-white hover:text-indigo-200 transition duration-200"
-          >
-            Sign in
-          </Link>
-        </p>
+        <div className="mt-8 space-y-3 text-center text-sm">
+          <p className="text-gray-200">
+            Already have an account?{" "}
+            <Link
+              to="/login"
+              className="font-medium text-white hover:text-indigo-200 transition duration-200"
+            >
+              Sign in
+            </Link>
+          </p>
+          <div className="pt-2 border-t border-white/10">
+            <p className="text-gray-200">
+              Want to join as a Referrer?{" "}
+              <Link
+                to="/referrer/signup"
+                className="font-medium text-indigo-300 hover:text-indigo-200 transition duration-200"
+              >
+                Referrer Registration
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

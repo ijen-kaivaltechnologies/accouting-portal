@@ -1,7 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ChevronLeft, FileText, CheckCircle, XCircle, Loader2, Download } from 'lucide-react';
+import { ArrowLeft, FileText, CheckCircle, XCircle, Loader2, Download, Clock, User, Mail, Phone, Calendar, MapPin, CreditCard, Hash } from 'lucide-react';
 import { api } from '../api';
+
+const InfoItem = ({ icon: Icon, label, value }) => (
+  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
+    <div style={{ width: '28px', height: '28px', background: '#f8fafc', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '1px' }}>
+      <Icon size={13} style={{ color: '#64748b' }} />
+    </div>
+    <div>
+      <p style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>{label}</p>
+      <p style={{ fontSize: '13px', color: '#0f172a', fontWeight: '500', wordBreak: 'break-all' }}>{value || '—'}</p>
+    </div>
+  </div>
+);
+
+const StatusBadge = ({ status }) => {
+  const m = {
+    approved: { bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0', Icon: CheckCircle, label: 'Approved' },
+    rejected: { bg: '#fef2f2', color: '#dc2626', border: '#fecaca', Icon: XCircle, label: 'Rejected' },
+  };
+  const c = m[status] || { bg: '#fefce8', color: '#ca8a04', border: '#fde68a', Icon: Clock, label: 'Pending Review' };
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: c.bg, color: c.color, border: `1px solid ${c.border}`, fontSize: '12px', fontWeight: '600', padding: '5px 13px', borderRadius: '20px' }}>
+      <c.Icon size={13} />{c.label}
+    </span>
+  );
+};
 
 const AdminReferrerDetail = () => {
   const { id } = useParams();
@@ -11,117 +36,119 @@ const AdminReferrerDetail = () => {
   const [processing, setProcessing] = useState(false);
   const [adminNote, setAdminNote] = useState('');
 
-  useEffect(() => {
-    fetchReferrer();
-  }, [id]);
+  useEffect(() => { fetchReferrer(); }, [id]);
 
   const fetchReferrer = async () => {
     try {
       const res = await api.getAdminReferrer(id);
       setReferrer(res.data);
-      if (res.data.admin_note) {
-        setAdminNote(res.data.admin_note);
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Failed to load referrer details');
-      navigate('/admin/referrers');
-    } finally {
-      setLoading(false);
-    }
+      if (res.data.admin_note) setAdminNote(res.data.admin_note);
+    } catch (err) { console.error(err); navigate('/admin/referrers'); }
+    finally { setLoading(false); }
   };
 
   const handleAction = async (status) => {
-    if (!window.confirm(`Are you sure you want to ${status} referrer ${referrer.full_name}?`)) {
-      return;
-    }
+    if (!window.confirm(`Are you sure you want to ${status} this referrer?`)) return;
     setProcessing(true);
     try {
       await api.updateAdminReferrerStatus(id, { status, note: adminNote });
-      alert(`Referrer successfully ${status}`);
-      fetchReferrer(); // refresh
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.error || `Failed to ${status} referrer`);
-    } finally {
-      setProcessing(false);
-    }
+      fetchReferrer();
+    } catch (err) { alert(err.response?.data?.error || `Failed to ${status} referrer`); }
+    finally { setProcessing(false); }
   };
 
   const openDocument = async (docType) => {
     try {
       const url = api.getAdminReferrerDocumentUrl(id, docType);
       const token = localStorage.getItem('token');
-      // Fetch as blob to send auth header
-      const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` }});
-      if (!response.ok) throw new Error('Failed to fetch document');
+      const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!response.ok) throw new Error();
       const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      window.open(blobUrl, '_blank');
-    } catch (err) {
-      console.error(err);
-      alert('Could not load document.');
-    }
+      window.open(URL.createObjectURL(blob), '_blank');
+    } catch { alert('Could not load document.'); }
   };
 
-  if (loading || !referrer) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin text-indigo-600" size={40} /></div>;
-  }
+  if (loading || !referrer) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
+      <Loader2 size={28} style={{ color: '#6366f1', animation: 'spin 1s linear infinite' }} />
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
 
   const isPending = referrer.status === 'pending';
+  const initials = referrer.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <button onClick={() => navigate('/admin/referrers')} className="flex items-center text-sm text-gray-500 hover:text-indigo-600 mb-6">
-        <ChevronLeft size={16} className="mr-1" /> Back to Referrers
-      </button>
+    <div style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+      {/* Back */}
+      <button onClick={() => navigate('/admin/referrers')}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', marginBottom: '20px', padding: 0 }}
+        onMouseEnter={e => e.currentTarget.style.color = '#0f172a'} onMouseLeave={e => e.currentTarget.style.color = '#64748b'}
+      ><ArrowLeft size={15} /> Back to Referrers</button>
 
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Referrer Profile</h1>
-        <div>
-          {referrer.status === 'approved' && <span className="px-4 py-1.5 rounded-full text-sm font-medium bg-green-100 text-green-800 flex items-center"><CheckCircle size={16} className="mr-2"/> Approved</span>}
-          {referrer.status === 'rejected' && <span className="px-4 py-1.5 rounded-full text-sm font-medium bg-red-100 text-red-800 flex items-center"><XCircle size={16} className="mr-2"/> Rejected</span>}
-          {referrer.status === 'pending' && <span className="px-4 py-1.5 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">Pending Review</span>}
+      {/* Page header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '48px', height: '48px', background: 'linear-gradient(135deg, #6366f1, #818cf8)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ color: 'white', fontSize: '16px', fontWeight: '700' }}>{initials}</span>
+          </div>
+          <div>
+            <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a', letterSpacing: '-0.3px' }}>{referrer.full_name}</h1>
+            <p style={{ color: '#64748b', fontSize: '13px', marginTop: '2px' }}>{referrer.email}</p>
+          </div>
         </div>
+        <StatusBadge status={referrer.status} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Col: Info */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white shadow rounded-lg p-6 border border-gray-100">
-            <h2 className="text-xl font-semibold mb-4 border-b pb-2">Personal Details</h2>
-            <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
-              <div><p className="text-gray-500 mb-1">Full Name</p><p className="font-medium text-gray-900">{referrer.full_name}</p></div>
-              <div><p className="text-gray-500 mb-1">Email</p><p className="font-medium text-gray-900">{referrer.email}</p></div>
-              <div><p className="text-gray-500 mb-1">Mobile</p><p className="font-medium text-gray-900">{referrer.mobile}</p></div>
-              <div><p className="text-gray-500 mb-1">DOB</p><p className="font-medium text-gray-900">{referrer.dob ? new Date(referrer.dob).toLocaleDateString('en-IN') : 'N/A'}</p></div>
-              <div><p className="text-gray-500 mb-1">PAN No</p><p className="font-medium text-gray-900">{referrer.pan_no}</p></div>
-              <div><p className="text-gray-500 mb-1">Aadhar No</p><p className="font-medium text-gray-900">{referrer.aadhar_no}</p></div>
-              <div className="col-span-2"><p className="text-gray-500 mb-1">Address</p><p className="font-medium text-gray-900">{referrer.address}</p></div>
-              <div className="col-span-2"><p className="text-gray-500 mb-1">Registered On</p><p className="font-medium text-gray-900">{new Date(referrer.created_at).toLocaleString('en-IN')}</p></div>
+      {/* Body */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '16px', alignItems: 'start' }}>
+
+        {/* Left: Details */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+          {/* Personal Info */}
+          <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+            <div style={{ padding: '15px 20px', borderBottom: '1px solid #f1f5f9' }}>
+              <h2 style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>Personal Details</h2>
+            </div>
+            <div style={{ padding: '8px 20px 12px' }}>
+              <InfoItem icon={User} label="Full Name" value={referrer.full_name} />
+              <InfoItem icon={Mail} label="Email" value={referrer.email} />
+              <InfoItem icon={Phone} label="Mobile" value={referrer.mobile} />
+              <InfoItem icon={Calendar} label="Date of Birth" value={referrer.dob ? new Date(referrer.dob).toLocaleDateString('en-IN') : null} />
+              <InfoItem icon={Hash} label="PAN Number" value={referrer.pan_no} />
+              <InfoItem icon={CreditCard} label="Aadhar Number" value={referrer.aadhar_no} />
+              <InfoItem icon={MapPin} label="Address" value={referrer.address} />
+              <InfoItem icon={Calendar} label="Registered On" value={new Date(referrer.created_at).toLocaleString('en-IN')} />
             </div>
           </div>
 
-          <div className="bg-white shadow rounded-lg p-6 border border-gray-100">
-            <h2 className="text-xl font-semibold mb-4 border-b pb-2">KYC Documents</h2>
-            <div className="space-y-4">
-              {['aadhar', 'pan', 'cheque'].map((docType) => {
-                const label = docType === 'aadhar' ? 'Aadhar Card' : docType === 'pan' ? 'PAN Card' : 'Bank Cancel Cheque';
-                // Map docType to the actual DB column for file path
-                const pathKey = docType === 'aadhar' ? 'aadhar_file_path' : docType === 'pan' ? 'pan_file_path' : 'bank_cancel_check_path';
-                const hasDoc = referrer[pathKey] && referrer[pathKey] !== 'PENDING';
+          {/* KYC Documents */}
+          <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+            <div style={{ padding: '15px 20px', borderBottom: '1px solid #f1f5f9' }}>
+              <h2 style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>KYC Documents</h2>
+            </div>
+            <div style={{ padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {[
+                { type: 'aadhar', label: 'Aadhar Card', pathKey: 'aadhar_file_path' },
+                { type: 'pan', label: 'PAN Card', pathKey: 'pan_file_path' },
+                { type: 'cheque', label: 'Bank Cancelled Cheque', pathKey: 'bank_cancel_check_path' },
+              ].map(doc => {
+                const hasDoc = referrer[doc.pathKey] && referrer[doc.pathKey] !== 'PENDING';
                 return (
-                  <div key={docType} className="flex justify-between items-center p-3 border rounded-md bg-gray-50">
-                    <div className="flex items-center">
-                      <FileText className="text-gray-400 mr-3" size={20} />
-                      <span className="font-medium text-gray-700">{label}</span>
+                  <div key={doc.type} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', background: '#f8fafc', borderRadius: '9px', border: '1px solid #f1f5f9' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <FileText size={16} style={{ color: '#94a3b8' }} />
+                      <span style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>{doc.label}</span>
                     </div>
                     {hasDoc ? (
-                      <button onClick={() => openDocument(docType)} className="text-indigo-600 hover:text-indigo-900 flex items-center text-sm font-medium">
-                        <Download size={16} className="mr-1"/> View PDF
-                      </button>
+                      <button onClick={() => openDocument(doc.type)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 11px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '7px', fontSize: '12px', fontWeight: '600', color: '#374151', cursor: 'pointer', transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = '#0f172a'; e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = '#0f172a'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+                      ><Download size={13} /> View PDF</button>
                     ) : (
-                      <span className="text-red-500 text-sm">Not uploaded</span>
+                      <span style={{ fontSize: '11px', color: '#ef4444', fontWeight: '500' }}>Not uploaded</span>
                     )}
                   </div>
                 );
@@ -130,45 +157,54 @@ const AdminReferrerDetail = () => {
           </div>
         </div>
 
-        {/* Right Col: Actions */}
-        <div className="lg:col-span-1">
-          <div className="bg-white shadow rounded-lg p-6 border border-gray-100 sticky top-6">
-            <h2 className="text-lg font-semibold mb-4">Decision Panel</h2>
-            
-            {!isPending && (
-              <div className={`p-4 rounded-md mb-4 text-sm ${referrer.status === 'approved' ? 'bg-green-50 border border-green-100 text-green-800' : 'bg-red-50 border border-red-100 text-red-800'}`}>
-                <p className="font-semibold mb-1">Action taken: {referrer.status.toUpperCase()}</p>
-                <p className="text-gray-600 mt-2"><strong>Admin Note:</strong><br/>{referrer.admin_note || 'No note provided.'}</p>
-                {referrer.reviewed_at && <p className="text-xs text-gray-500 mt-3">Reviewed on {new Date(referrer.reviewed_at).toLocaleString('en-IN')}</p>}
+        {/* Right: Decision Panel */}
+        <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden', position: 'sticky', top: '20px' }}>
+          <div style={{ padding: '15px 20px', borderBottom: '1px solid #f1f5f9' }}>
+            <h2 style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>Decision Panel</h2>
+          </div>
+          <div style={{ padding: '18px 20px' }}>
+            {!isPending ? (
+              <div style={{ background: referrer.status === 'approved' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${referrer.status === 'approved' ? '#bbf7d0' : '#fecaca'}`, borderRadius: '10px', padding: '14px' }}>
+                <p style={{ fontSize: '12px', fontWeight: '700', color: referrer.status === 'approved' ? '#16a34a' : '#dc2626', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                  {referrer.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
+                </p>
+                <p style={{ fontSize: '13px', color: '#374151', marginBottom: '8px' }}>
+                  <strong>Note:</strong> {referrer.admin_note || 'No note provided.'}
+                </p>
+                {referrer.reviewed_at && (
+                  <p style={{ fontSize: '11px', color: '#94a3b8' }}>
+                    Reviewed on {new Date(referrer.reviewed_at).toLocaleString('en-IN')}
+                  </p>
+                )}
               </div>
-            )}
-
-            {isPending && (
-              <div className="space-y-4">
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Admin Note / Reason (Optional)</label>
-                  <textarea 
-                    value={adminNote}
-                    onChange={(e) => setAdminNote(e.target.value)}
-                    rows="4" 
-                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="E.g., KYC documents are blurry..."
-                  ></textarea>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                    Admin Note / Reason <span style={{ color: '#94a3b8', fontWeight: '400' }}>(Optional)</span>
+                  </label>
+                  <textarea
+                    value={adminNote} onChange={e => setAdminNote(e.target.value)} rows={4}
+                    placeholder="E.g., KYC documents are unclear..."
+                    style={{ width: '100%', padding: '10px 13px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '9px', fontSize: '13px', color: '#0f172a', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', transition: 'border-color 0.2s' }}
+                    onFocus={e => e.target.style.borderColor = '#6366f1'} onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                  />
                 </div>
-                <div className="flex flex-col gap-3 pt-2">
-                  <button 
-                    disabled={processing}
-                    onClick={() => handleAction('approved')}
-                    className="w-full bg-green-600 text-white py-2 rounded-md font-medium hover:bg-green-700 disabled:opacity-50"
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button disabled={processing} onClick={() => handleAction('approved')}
+                    style={{ width: '100%', padding: '11px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '9px', fontSize: '13px', fontWeight: '600', cursor: processing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: processing ? 0.6 : 1, transition: 'background 0.15s' }}
+                    onMouseEnter={e => { if (!processing) e.currentTarget.style.background = '#15803d'; }}
+                    onMouseLeave={e => { if (!processing) e.currentTarget.style.background = '#16a34a'; }}
                   >
-                    {processing ? 'Processing...' : 'Approve Referrer'}
+                    {processing ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <CheckCircle size={15} />}
+                    Approve Referrer
                   </button>
-                  <button 
-                    disabled={processing}
-                    onClick={() => handleAction('rejected')}
-                    className="w-full border border-red-300 text-red-600 py-2 rounded-md font-medium hover:bg-red-50 disabled:opacity-50"
+                  <button disabled={processing} onClick={() => handleAction('rejected')}
+                    style={{ width: '100%', padding: '11px', background: 'white', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '9px', fontSize: '13px', fontWeight: '600', cursor: processing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: processing ? 0.6 : 1, transition: 'all 0.15s' }}
+                    onMouseEnter={e => { if (!processing) { e.currentTarget.style.background = '#fef2f2'; } }}
+                    onMouseLeave={e => { if (!processing) { e.currentTarget.style.background = 'white'; } }}
                   >
-                    {processing ? 'Processing...' : 'Reject'}
+                    <XCircle size={15} /> Reject
                   </button>
                 </div>
               </div>
@@ -176,6 +212,7 @@ const AdminReferrerDetail = () => {
           </div>
         </div>
       </div>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}} textarea::placeholder{color:#94a3b8;}`}</style>
     </div>
   );
 };

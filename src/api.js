@@ -65,6 +65,7 @@ export const api = {
     getReferralRequests: (status) => axiosInstance.get(`/referrer/requests${status && status !== 'all' ? `?status=${status}` : ''}`),
     getReferralRequest: (id) => axiosInstance.get(`/referrer/requests/${id}`),
     getEarnings: () => axiosInstance.get('/referrer/earnings'),
+    getReferrerProfile: () => axiosInstance.get('/referrer/profile'),
     
     // Admin Referrer & Request endpoints
     getAdminReferrers: (status, page, limit) => axiosInstance.get(`/admin/referrers?status=${status || ''}&page=${page || 1}&limit=${limit || 20}`),

@@ -350,6 +350,32 @@ module.exports = function createReferrerRouter(pool) {
   });
 
 
+  /**
+   * GET /api/referrer/profile
+   * Authenticated. Returns the profile of the logged-in referrer.
+   */
+  router.get('/referrer/profile', authenticateReferrer, async (req, res) => {
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        `SELECT id, full_name, email, mobile, pan_no, aadhar_no, dob, address, status, created_at, reviewed_at
+         FROM referrers
+         WHERE id = $1`,
+        [req.user.id]
+      );
+      if (!result.rows.length) {
+        return res.status(404).json({ error: 'Referrer not found' });
+      }
+      return res.json(result.rows[0]);
+    } catch (err) {
+      console.error('[referrer/profile]', err);
+      return res.status(500).json({ error: 'Server error' });
+    } finally {
+      client.release();
+    }
+  });
+
+
   // =========================================================================
   // MODULE 2 — SERVICE LISTING (referrer-facing, read-only)
   // =========================================================================
