@@ -40,7 +40,7 @@ function Login() {
       localStorage.setItem("fullName", fullName);
 
       alert("Login successful");
-      window.location.href = "/";
+      window.location.href = "/admin";
       setLoading(false);
     } catch (error) {
       setLoading(false);
@@ -142,7 +142,7 @@ function Login() {
             <p className="text-gray-200">
               Are you a Referrer?{" "}
               <Link
-                to="/referrer/login"
+                to="/"
                 className="font-medium text-indigo-300 hover:text-indigo-200 transition duration-200"
               >
                 Referrer Portal

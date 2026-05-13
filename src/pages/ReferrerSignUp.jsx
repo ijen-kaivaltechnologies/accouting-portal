@@ -71,7 +71,7 @@ const ReferrerSignUp = () => {
     try {
       await api.referrerRegister({ ...d, ...files });
       setSuccess('Registration submitted! Please wait for admin approval.');
-      setTimeout(() => navigate('/referrer/login'), 3000);
+      setTimeout(() => navigate('/'), 3000);
     } catch (err) { setError(err.response?.data?.error || 'Registration failed.'); }
     finally { setLoading(false); }
   };
@@ -211,15 +211,9 @@ const ReferrerSignUp = () => {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', padding: '4px 0' }}>
             <p style={{ fontSize: '13px', color: '#64748b' }}>
               Already registered?{' '}
-              <Link to="/referrer/login" style={{ color: '#6366f1', fontWeight: '600', textDecoration: 'none' }}
+              <Link to="/" style={{ color: '#6366f1', fontWeight: '600', textDecoration: 'none' }}
                 onMouseEnter={e => e.target.style.textDecoration = 'underline'} onMouseLeave={e => e.target.style.textDecoration = 'none'}
               >Sign in</Link>
-            </p>
-            <p style={{ fontSize: '13px', color: '#64748b' }}>
-              Admin access?{' '}
-              <Link to="/login" style={{ color: '#0f172a', fontWeight: '600', textDecoration: 'none' }}
-                onMouseEnter={e => e.target.style.textDecoration = 'underline'} onMouseLeave={e => e.target.style.textDecoration = 'none'}
-              >Admin Login</Link>
             </p>
             <button type="submit" disabled={loading}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 28px', background: loading ? '#94a3b8' : '#0f172a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', transition: 'background 0.15s' }}

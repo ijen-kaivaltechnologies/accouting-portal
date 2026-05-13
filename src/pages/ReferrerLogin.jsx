@@ -24,7 +24,7 @@ const ReferrerLogin = () => {
       const data = res.data;
       localStorage.setItem('referrer_token', data.token);
       localStorage.setItem('referrer_name', data.full_name);
-      navigate('/referrer/dashboard');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
@@ -104,19 +104,12 @@ const ReferrerLogin = () => {
 
           <p style={{ marginTop: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
             Don't have an account?{' '}
-            <Link to="/referrer/signup" style={{ color: '#818cf8', fontWeight: '500', textDecoration: 'none' }}
+            <Link to="/signup" style={{ color: '#818cf8', fontWeight: '500', textDecoration: 'none' }}
               onMouseEnter={e => e.target.style.textDecoration = 'underline'}
               onMouseLeave={e => e.target.style.textDecoration = 'none'}
             >Register here</Link>
           </p>
 
-          <p style={{ marginTop: '12px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-            Are you an Admin or Staff?{' '}
-            <Link to="/login" style={{ color: '#cbd5e1', fontWeight: '500', textDecoration: 'none' }}
-              onMouseEnter={e => e.target.style.textDecoration = 'underline'}
-              onMouseLeave={e => e.target.style.textDecoration = 'none'}
-            >Admin Login</Link>
-          </p>
         </div>
       </div>
 

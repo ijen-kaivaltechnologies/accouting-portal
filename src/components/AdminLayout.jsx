@@ -24,18 +24,18 @@ const AdminLayout = () => {
   };
 
   const navItems = [
-    { path: '/', label: 'Clients', icon: <LayoutGrid size={20} /> },
+    { path: '/admin/users', label: 'Clients', icon: <LayoutGrid size={20} /> },
     { path: '/admin/referrers', label: 'Referrers', icon: <Users size={20} /> },
     { path: '/admin/referral-requests', label: 'Requests', icon: <FileText size={20} /> },
   ];
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    navigate("/login");
+    navigate("/admin/login");
   };
 
   const isActive = (path) => {
-    if (path === '/' && location.pathname === '/') return true;
+    if (path === '/admin/users' && location.pathname === '/admin/users') return true;
     if (path !== '/' && location.pathname.startsWith(path)) return true;
     return false;
   };

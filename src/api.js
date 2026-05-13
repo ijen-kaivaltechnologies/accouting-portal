@@ -12,7 +12,7 @@ const axiosInstance = axios.create({
 // Add a request interceptor
 axiosInstance.interceptors.request.use(
     (config) => {
-        const isReferrerApp = window.location.pathname.startsWith('/referrer');
+        const isReferrerApp = !window.location.pathname.startsWith('/admin');
         const token = isReferrerApp ? localStorage.getItem('referrer_token') : localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -37,13 +37,13 @@ axiosInstance.interceptors.response.use(
         }
 
         if (error.response?.status === 401) {
-            const isReferrerApp = window.location.pathname.startsWith('/referrer');
+            const isReferrerApp = !window.location.pathname.startsWith('/admin');
             if (isReferrerApp) {
                 localStorage.removeItem('referrer_token');
-                window.location.href = '/referrer/login';
+                window.location.href = '/';
             } else {
                 localStorage.removeItem('token');
-                window.location.href = '/login';
+                window.location.href = '/admin/login';
             }
         }
         return Promise.reject(error);

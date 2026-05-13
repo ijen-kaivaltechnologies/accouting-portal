@@ -11,7 +11,7 @@ const ReferrerDashboard = () => {
   useEffect(() => {
     const token = localStorage.getItem('referrer_token');
     if (!token) {
-      navigate('/referrer/login');
+      navigate('/');
     } else {
       setReferrerName(localStorage.getItem('referrer_name') || 'Referrer');
     }
@@ -20,7 +20,7 @@ const ReferrerDashboard = () => {
   const handleLogout = () => {
     localStorage.removeItem('referrer_token');
     localStorage.removeItem('referrer_name');
-    navigate('/referrer/login');
+    navigate('/');
   };
 
   const navItems = [
@@ -99,7 +99,7 @@ const ReferrerDashboard = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => { navigate(`/referrer/dashboard/${item.id}`); setIsMobileMenuOpen(false); }}
+                onClick={() => { navigate(`/dashboard/${item.id}`); setIsMobileMenuOpen(false); }}
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
                   padding: '10px 10px', borderRadius: '8px', border: 'none', cursor: 'pointer',
