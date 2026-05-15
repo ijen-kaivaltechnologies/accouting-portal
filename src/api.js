@@ -12,7 +12,8 @@ const axiosInstance = axios.create({
 // Add a request interceptor
 axiosInstance.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
+        const isReferrerApp = !window.location.pathname.startsWith('/admin');
+        const token = isReferrerApp ? localStorage.getItem('referrer_token') : localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -31,14 +32,19 @@ axiosInstance.interceptors.response.use(
     (error) => {
 
         // ignore login response
-        if (error.config.url === '/login') {
+        if (error.config.url === '/login' || error.config.url === '/referrer/login') {
             return Promise.reject(error);
         }
 
         if (error.response?.status === 401) {
-            // Handle unauthorized access
-            localStorage.removeItem('token');
-            window.location.href = '/login';
+            const isReferrerApp = !window.location.pathname.startsWith('/admin');
+            if (isReferrerApp) {
+                localStorage.removeItem('referrer_token');
+                window.location.href = '/';
+            } else {
+                localStorage.removeItem('token');
+                window.location.href = '/admin/login';
+            }
         }
         return Promise.reject(error);
     }
@@ -48,6 +54,37 @@ export const api = {
     // User authentication
     register: (userData) => axiosInstance.post('/register', userData),
     login: (credentials) => axiosInstance.post('/login', credentials),
+    
+    // Referrer endpoints
+    referrerRegister: (data) => axiosInstance.post('/referrer/register', data),
+    referrerLogin: (credentials) => axiosInstance.post('/referrer/login', credentials),
+    getServiceCategories: () => axiosInstance.get('/services/categories'),
+    getServicePlans: (categoryId) => axiosInstance.get(`/services/plans${categoryId ? `?category_id=${categoryId}` : ''}`),
+    getPlanRequirements: (planId) => axiosInstance.get(`/services/plans/${planId}/requirements`),
+    submitReferralRequest: (data) => axiosInstance.post('/referrer/requests', data),
+    getReferralRequests: (status) => axiosInstance.get(`/referrer/requests${status && status !== 'all' ? `?status=${status}` : ''}`),
+    getReferralRequest: (id) => axiosInstance.get(`/referrer/requests/${id}`),
+    getEarnings: () => axiosInstance.get('/referrer/earnings'),
+    getReferrerProfile: () => axiosInstance.get('/referrer/profile'),
+    
+    // Admin Referrer & Request endpoints
+    getAdminReferrers: (status, page, limit) => axiosInstance.get(`/admin/referrers?status=${status || ''}&page=${page || 1}&limit=${limit || 20}`),
+    getAdminReferrer: (id) => axiosInstance.get(`/admin/referrers/${id}`),
+    updateAdminReferrerStatus: (id, payload) => axiosInstance.put(`/admin/referrers/${id}/status`, payload),
+    getAdminReferrerDocumentUrl: (id, docType) => `${API_URL}/admin/referrers/${id}/documents/${docType}`, // For hrefs or blob fetching
+    
+    getAdminReferralRequests: (status, plan_id, referrer_id, page, limit) => {
+        const query = new URLSearchParams();
+        if (status && status !== 'all') query.append('status', status);
+        if (plan_id) query.append('plan_id', plan_id);
+        if (referrer_id) query.append('referrer_id', referrer_id);
+        query.append('page', page || 1);
+        query.append('limit', limit || 20);
+        return axiosInstance.get(`/admin/requests?${query.toString()}`);
+    },
+    getAdminReferralRequest: (id) => axiosInstance.get(`/admin/requests/${id}`),
+    updateAdminReferralRequestDecision: (id, payload) => axiosInstance.put(`/admin/requests/${id}/decision`, payload),
+    getAdminRequestDocumentUrl: (id, docId) => `${API_URL}/admin/requests/${id}/documents/${docId}`,
     
     // Protected routes
     profile: () => axiosInstance.get('/profile'),

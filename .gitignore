@@ -42,6 +42,8 @@ build/Release
 node_modules/
 jspm_packages/
 client_folders/
+referral_docs/
+referrer_docs/
 
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/

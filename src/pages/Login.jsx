@@ -40,7 +40,7 @@ function Login() {
       localStorage.setItem("fullName", fullName);
 
       alert("Login successful");
-      window.location.href = "/";
+      window.location.href = "/admin";
       setLoading(false);
     } catch (error) {
       setLoading(false);
@@ -137,15 +137,19 @@ function Login() {
           </button>
         </form>
 
-        {/* <p className="mt-8 text-center text-sm text-gray-200">
-          Don't have an account?{" "}
-          <Link
-            to="/signup"
-            className="font-medium text-white hover:text-indigo-200 transition duration-200"
-          >
-            Sign up now
-          </Link>
-        </p> */}
+        <div className="mt-8 space-y-3 text-center text-sm">
+          <div className="pt-2 border-t border-white/10">
+            <p className="text-gray-200">
+              Are you a Referrer?{" "}
+              <Link
+                to="/"
+                className="font-medium text-indigo-300 hover:text-indigo-200 transition duration-200"
+              >
+                Referrer Portal
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
