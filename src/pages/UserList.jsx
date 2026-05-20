@@ -606,7 +606,7 @@ function UserList() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium max-w-xl">
                   <div className="flex items-center space-x-4">
                     <button
-                      onClick={() => navigate(`/user/${client.id}`)}
+                      onClick={() => navigate(`/admin/user/${client.id}`)}
                       className="text-indigo-600 hover:text-indigo-900"
                     >
                       View
