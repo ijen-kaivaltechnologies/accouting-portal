@@ -148,7 +148,7 @@ function UserDetails() {
               </div>
               <div className="mt-6 flex space-x-3">
                 <button
-                  onClick={() => navigate(`/user/${userId}/folder/${folder.id}`)}
+                  onClick={() => navigate(`/admin/user/${userId}/folder/${folder.id}`)}
                   className="flex-1 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-md hover:bg-indigo-100 transition duration-150 ease-in-out"
                 >
                   View Files

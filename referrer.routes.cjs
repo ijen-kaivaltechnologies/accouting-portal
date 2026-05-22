@@ -39,16 +39,17 @@ function trim(v) {
   return v.trim().replace(/<[^>]*>?/gm, '');
 }
 
-// Detect mime type from base64 header or first bytes
 function detectMime(base64String) {
   const header = base64String.substring(0, 8);
   if (header.startsWith('JVBER'))    return 'pdf';
   if (header.startsWith('UEsDB'))    return 'xlsx'; // ZIP-based (xlsx)
   if (header.startsWith('0M8R4KG')) return 'xls';
+  if (header.startsWith('/9j/'))     return 'jpg';
   // Also accept data-uri prefix
   if (base64String.startsWith('data:application/pdf'))                    return 'pdf';
   if (base64String.startsWith('data:application/vnd.openxmlformats'))    return 'xlsx';
   if (base64String.startsWith('data:application/vnd.ms-excel'))          return 'xls';
+  if (base64String.startsWith('data:image/jpeg') || base64String.startsWith('data:image/jpg')) return 'jpg';
   return 'unknown';
 }
 
@@ -210,10 +211,10 @@ module.exports = function createReferrerRouter(pool) {
         errors.dob = 'Date of birth must be a valid past date';
       }
 
-      // Validate file types (must be PDF)
+      // Validate file types (must be PDF or JPG)
       for (const [field, b64] of [['aadhar_file', aadhar_file], ['pan_file', pan_file], ['bank_cancel_check', bank_cancel_check]]) {
         const mime = detectMime(stripDataUri(b64));
-        if (mime !== 'pdf') errors[field] = `${field} must be a PDF file`;
+        if (mime !== 'pdf' && mime !== 'jpg') errors[field] = `${field} must be a PDF or JPG file`;
       }
 
       if (Object.keys(errors).length) {
@@ -259,9 +260,17 @@ module.exports = function createReferrerRouter(pool) {
       const referrerDir = path.join(REFERRER_DOCS_BASE, String(referrerId));
       await ensureDir(referrerDir);
 
-      const aadharPath  = path.join(referrerDir, 'aadhar.pdf');
-      const panPath     = path.join(referrerDir, 'pan.pdf');
-      const bankPath    = path.join(referrerDir, 'bank_cancel_check.pdf');
+      const aadharMime = detectMime(stripDataUri(aadhar_file));
+      const panMime = detectMime(stripDataUri(pan_file));
+      const bankMime = detectMime(stripDataUri(bank_cancel_check));
+
+      const aadharExt = aadharMime === 'jpg' ? 'jpg' : 'pdf';
+      const panExt = panMime === 'jpg' ? 'jpg' : 'pdf';
+      const bankExt = bankMime === 'jpg' ? 'jpg' : 'pdf';
+
+      const aadharPath  = path.join(referrerDir, `aadhar.${aadharExt}`);
+      const panPath     = path.join(referrerDir, `pan.${panExt}`);
+      const bankPath    = path.join(referrerDir, `bank_cancel_check.${bankExt}`);
 
       try {
         await saveBase64File(aadhar_file, aadharPath);
@@ -962,9 +971,14 @@ module.exports = function createReferrerRouter(pool) {
       }
 
       const stats = fs.statSync(filePath);
-      res.setHeader('Content-Type', 'application/pdf');
+      const ext = path.extname(filePath).toLowerCase();
+      let contentType = 'application/pdf';
+      if (ext === '.jpg' || ext === '.jpeg') {
+        contentType = 'image/jpeg';
+      }
+      res.setHeader('Content-Type', contentType);
       res.setHeader('Content-Length', stats.size);
-      res.setHeader('Content-Disposition', `inline; filename="${req.params.docType}.pdf"`);
+      res.setHeader('Content-Disposition', `inline; filename="${req.params.docType}${ext}"`);
       fs.createReadStream(filePath).pipe(res);
 
     } catch (err) {

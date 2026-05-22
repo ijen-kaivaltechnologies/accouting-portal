@@ -16,6 +16,30 @@ const inputStyle = {
   width: '100%', padding: '10px 13px', background: '#f8fafc', border: '1px solid #e2e8f0',
   borderRadius: '9px', fontSize: '13px', color: '#0f172a', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s'
 };
+const Section = ({ title, children }) => (
+  <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+    <div style={{ padding: '16px 22px', borderBottom: '1px solid #f1f5f9' }}>
+      <h2 style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>{title}</h2>
+    </div>
+    <div style={{ padding: '22px' }}>{children}</div>
+  </div>
+);
+
+const FileUpload = ({ fieldKey, label, fileNames, handleFileChange }) => (
+  <div>
+    <p style={{ fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '7px' }}>{label}</p>
+    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', background: fileNames[fieldKey] ? '#f0fdf4' : '#f8fafc', border: `1.5px dashed ${fileNames[fieldKey] ? '#86efac' : '#e2e8f0'}`, borderRadius: '9px', cursor: 'pointer', transition: 'all 0.2s' }}
+      onMouseEnter={e => { if (!fileNames[fieldKey]) e.currentTarget.style.borderColor = '#a5b4fc'; }}
+      onMouseLeave={e => { if (!fileNames[fieldKey]) e.currentTarget.style.borderColor = '#e2e8f0'; }}
+    >
+      {fileNames[fieldKey] ? <CheckCircle size={16} style={{ color: '#16a34a', flexShrink: 0 }} /> : <Upload size={16} style={{ color: '#94a3b8', flexShrink: 0 }} />}
+      <span style={{ fontSize: '12px', color: fileNames[fieldKey] ? '#16a34a' : '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: fileNames[fieldKey] ? '600' : '400' }}>
+        {fileNames[fieldKey] || 'Click to upload PDF or JPG'}
+      </span>
+      <input type="file" accept="application/pdf, image/jpeg, image/jpg" style={{ display: 'none' }} required onChange={e => handleFileChange(e, fieldKey)} />
+    </label>
+  </div>
+);
 
 const ReferrerSignUp = () => {
   const navigate = useNavigate();
@@ -32,7 +56,18 @@ const ReferrerSignUp = () => {
   const [files, setFiles] = useState({ aadhar_file: '', pan_file: '', bank_cancel_check: '' });
   const [fileNames, setFileNames] = useState({ aadhar_file: '', pan_file: '', bank_cancel_check: '' });
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    if (name === 'aadhar_no') {
+      const digits = value.replace(/\D/g, '').slice(0, 12);
+      setFormData(prev => ({ ...prev, [name]: digits }));
+    } else if (name === 'pan_no') {
+      const pan = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+      setFormData(prev => ({ ...prev, [name]: pan }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
 
   const toBase64 = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -44,14 +79,30 @@ const ReferrerSignUp = () => {
   const handleFileChange = async (e, fieldName) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.type !== 'application/pdf') { setError(`Please upload a PDF file for ${fieldName.replace(/_/g, ' ')}.`); return; }
-    if (file.size > 25 * 1024 * 1024) { setError(`File exceeds 25MB limit.`); return; }
+    
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg'];
+    const ext = file.name.split('.').pop().toLowerCase();
+    
+    if (!allowedTypes.includes(file.type) && ext !== 'jpg' && ext !== 'jpeg') {
+      const errMsg = `Please upload a PDF or JPG file for ${fieldName.replace(/_/g, ' ')}.`;
+      alert(errMsg);
+      return;
+    }
+    
+    if (file.size > 25 * 1024 * 1024) {
+      const errMsg = `File exceeds 25MB limit.`;
+      alert(errMsg);
+      return;
+    }
+    
     try {
       const base64 = await toBase64(file);
       setFiles(prev => ({ ...prev, [fieldName]: base64 }));
       setFileNames(prev => ({ ...prev, [fieldName]: file.name }));
-      setError('');
-    } catch { setError('Error reading file. Please try again.'); }
+    } catch {
+      const errMsg = 'Error reading file. Please try again.';
+      alert(errMsg);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -75,32 +126,6 @@ const ReferrerSignUp = () => {
     } catch (err) { setError(err.response?.data?.error || 'Registration failed.'); }
     finally { setLoading(false); }
   };
-
-  const Section = ({ title, children }) => (
-    <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-      <div style={{ padding: '16px 22px', borderBottom: '1px solid #f1f5f9' }}>
-        <h2 style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>{title}</h2>
-      </div>
-      <div style={{ padding: '22px' }}>{children}</div>
-    </div>
-  );
-
-  const FileUpload = ({ fieldKey, label }) => (
-    <div>
-      <p style={{ fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '7px' }}>{label}</p>
-      <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', background: fileNames[fieldKey] ? '#f0fdf4' : '#f8fafc', border: `1.5px dashed ${fileNames[fieldKey] ? '#86efac' : '#e2e8f0'}`, borderRadius: '9px', cursor: 'pointer', transition: 'all 0.2s' }}
-        onMouseEnter={e => { if (!fileNames[fieldKey]) e.currentTarget.style.borderColor = '#a5b4fc'; }}
-        onMouseLeave={e => { if (!fileNames[fieldKey]) e.currentTarget.style.borderColor = '#e2e8f0'; }}
-      >
-        {fileNames[fieldKey] ? <CheckCircle size={16} style={{ color: '#16a34a', flexShrink: 0 }} /> : <Upload size={16} style={{ color: '#94a3b8', flexShrink: 0 }} />}
-        <span style={{ fontSize: '12px', color: fileNames[fieldKey] ? '#16a34a' : '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: fileNames[fieldKey] ? '600' : '400' }}>
-          {fileNames[fieldKey] || 'Click to upload PDF'}
-        </span>
-        <input type="file" accept="application/pdf" style={{ display: 'none' }} required onChange={e => handleFileChange(e, fieldKey)} />
-      </label>
-    </div>
-  );
-
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '40px 16px', fontFamily: 'Inter, system-ui, sans-serif' }}>
       <div style={{ maxWidth: '780px', margin: '0 auto' }}>
@@ -161,22 +186,28 @@ const ReferrerSignUp = () => {
           <Section title="KYC Details">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '14px' }}>
               <Field label="Aadhar Number" hint="(12 digits)">
-                <input name="aadhar_no" type="text" required pattern="\d{12}" value={formData.aadhar_no} onChange={handleChange} style={inputStyle} placeholder="0000 0000 0000"
+                <input name="aadhar_no" type="text" inputMode="numeric" maxLength={12} required pattern="\d{12}" value={formData.aadhar_no} onChange={handleChange} style={inputStyle} placeholder="0000 0000 0000"
                   onFocus={e => e.target.style.borderColor = '#6366f1'} onBlur={e => e.target.style.borderColor = '#e2e8f0'} />
+                {formData.aadhar_no && formData.aadhar_no.length < 12 && (
+                  <p style={{ fontSize: '11px', color: '#ef4444', marginTop: '5px' }}>Must be exactly 12 digits</p>
+                )}
               </Field>
               <Field label="PAN Number">
-                <input name="pan_no" type="text" required value={formData.pan_no} onChange={handleChange} style={{ ...inputStyle, textTransform: 'uppercase' }} placeholder="ABCDE1234F"
+                <input name="pan_no" type="text" maxLength={10} required pattern="[A-Za-z]{5}[0-9]{4}[A-Za-z]" value={formData.pan_no} onChange={handleChange} style={{ ...inputStyle, textTransform: 'uppercase' }} placeholder="ABCDE1234F"
                   onFocus={e => e.target.style.borderColor = '#6366f1'} onBlur={e => e.target.style.borderColor = '#e2e8f0'} />
+                {formData.pan_no && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(formData.pan_no) && (
+                  <p style={{ fontSize: '11px', color: '#ef4444', marginTop: '5px' }}>Must be 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F)</p>
+                )}
               </Field>
             </div>
           </Section>
 
           {/* Documents */}
-          <Section title="KYC Documents (PDF only, max 25MB each)">
+          <Section title="KYC Documents (PDF or JPG, max 25MB each)">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '14px' }}>
-              <FileUpload fieldKey="aadhar_file" label="Aadhar Card PDF" />
-              <FileUpload fieldKey="pan_file" label="PAN Card PDF" />
-              <FileUpload fieldKey="bank_cancel_check" label="Bank Cancelled Cheque PDF" />
+              <FileUpload fieldKey="aadhar_file" label="Aadhar Card PDF/JPG" fileNames={fileNames} handleFileChange={handleFileChange} />
+              <FileUpload fieldKey="pan_file" label="PAN Card PDF/JPG" fileNames={fileNames} handleFileChange={handleFileChange} />
+              <FileUpload fieldKey="bank_cancel_check" label="Bank Cancelled Cheque PDF/JPG" fileNames={fileNames} handleFileChange={handleFileChange} />
             </div>
           </Section>
 
