@@ -112,7 +112,7 @@ const ReferrerPlans = () => {
                 </div>
 
                 <button
-                  onClick={() => navigate(`/referrer/dashboard/plans/${plan.id}/submit`)}
+                  onClick={() => navigate(`/dashboard/plans/${plan.id}/submit`)}
                   style={{ width: '100%', padding: '10px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '9px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'background 0.15s' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#1e293b'}
                   onMouseLeave={e => e.currentTarget.style.background = '#0f172a'}
