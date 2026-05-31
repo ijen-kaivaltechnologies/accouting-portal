@@ -137,3 +137,18 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+# Added by code-review-graph
+.code-review-graph/
+.vscode
+.qoder
+.kiro
+.cursor
+.claude
+.gemini
+.mcp.json
+.opencode.json
+.windsurfrules
+AGENTS.md
+.cursorrules
+GEMINI.md
+CLAUDE.md

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { Loader2, TrendingUp, IndianRupee, Calendar, User } from 'lucide-react';
+import { Loader2, TrendingUp, IndianRupee, Calendar, User, CheckCircle, Clock, Banknote } from 'lucide-react';
 
 const ReferrerMoney = () => {
   const [earnings, setEarnings] = useState({ total_earned: 0, entries: [] });
@@ -25,6 +25,12 @@ const ReferrerMoney = () => {
     );
   }
 
+  const paidCount = earnings.entries.filter(e => e.payment_status === 'paid').length;
+  const unpaidCount = earnings.entries.length - paidCount;
+  const paidTotal = earnings.entries
+    .filter(e => e.payment_status === 'paid')
+    .reduce((sum, e) => sum + parseFloat(e.commission_earned), 0);
+
   return (
     <div>
       {/* Page Header */}
@@ -34,36 +40,59 @@ const ReferrerMoney = () => {
       </div>
 
       {/* Stats Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '28px' }}>
-        {/* Total Earned */}
-        <div style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)', borderRadius: '14px', padding: '22px', color: 'white', gridColumn: 'span 1', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', right: '-10px', top: '-10px', opacity: 0.05 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '28px' }}>
+        {/* Paid Total — primary card */}
+        <div style={{ background: 'linear-gradient(135deg, #14532d, #166534)', borderRadius: '14px', padding: '22px', color: 'white', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', right: '-10px', top: '-10px', opacity: 0.06 }}>
             <IndianRupee size={100} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-            <div style={{ width: '32px', height: '32px', background: 'rgba(99,102,241,0.3)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <TrendingUp size={16} style={{ color: '#a5b4fc' }} />
+            <div style={{ width: '32px', height: '32px', background: 'rgba(134,239,172,0.2)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CheckCircle size={16} style={{ color: '#86efac' }} />
             </div>
-            <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Earned</span>
+            <span style={{ color: '#86efac', fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Paid</span>
           </div>
-          <div style={{ fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>
-            ₹{parseFloat(earnings.total_earned).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          <div style={{ fontSize: '28px', fontWeight: '800', letterSpacing: '-1px' }}>
+            ₹{paidTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </div>
-          <div style={{ marginTop: '8px', fontSize: '12px', color: '#64748b' }}>
-            From {earnings.entries.length} approved referral{earnings.entries.length !== 1 ? 's' : ''}
+          <div style={{ marginTop: '8px', fontSize: '12px', color: '#bbf7d0' }}>
+            {paidCount} commission{paidCount !== 1 ? 's' : ''} paid out
           </div>
         </div>
 
-        {/* Approved Count */}
+        {/* Unpaid Total */}
+        <div style={{ background: 'linear-gradient(135deg, #78350f, #92400e)', borderRadius: '14px', padding: '22px', color: 'white', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', right: '-10px', top: '-10px', opacity: 0.06 }}>
+            <IndianRupee size={100} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <div style={{ width: '32px', height: '32px', background: 'rgba(253,230,138,0.2)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Clock size={16} style={{ color: '#fde68a' }} />
+            </div>
+            <span style={{ color: '#fde68a', fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unpaid</span>
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: '800', letterSpacing: '-1px' }}>
+            ₹{(parseFloat(earnings.total_earned) - paidTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          </div>
+          <div style={{ marginTop: '8px', fontSize: '12px', color: '#fde68a', opacity: 0.8 }}>
+            {unpaidCount} commission{unpaidCount !== 1 ? 's' : ''} pending
+          </div>
+        </div>
+
+        {/* Total Referrals */}
         <div style={{ background: 'white', borderRadius: '14px', padding: '22px', border: '1px solid #e2e8f0' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-            <div style={{ width: '32px', height: '32px', background: '#f0fdf4', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <User size={16} style={{ color: '#16a34a' }} />
+            <div style={{ width: '32px', height: '32px', background: '#f1f5f9', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <TrendingUp size={16} style={{ color: '#6366f1' }} />
             </div>
-            <span style={{ color: '#64748b', fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Approved</span>
+            <span style={{ color: '#64748b', fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Earned</span>
           </div>
-          <div style={{ fontSize: '30px', fontWeight: '800', color: '#0f172a' }}>{earnings.entries.length}</div>
-          <div style={{ marginTop: '8px', fontSize: '12px', color: '#94a3b8' }}>Referral requests</div>
+          <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a' }}>
+            ₹{parseFloat(earnings.total_earned).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          </div>
+          <div style={{ marginTop: '8px', fontSize: '12px', color: '#94a3b8' }}>
+            {earnings.entries.length} approved referral{earnings.entries.length !== 1 ? 's' : ''}
+          </div>
         </div>
       </div>
 
@@ -85,37 +114,51 @@ const ReferrerMoney = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#f8fafc' }}>
-                  {['Date', 'Plan / Customer', 'Sale Price', 'Commission'].map(h => (
-                    <th key={h} style={{ padding: '11px 18px', textAlign: h === 'Commission' ? 'right' : h === 'Sale Price' ? 'right' : 'left', fontSize: '11px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f1f5f9' }}>{h}</th>
+                  {['Date', 'Plan / Customer', 'Sale Price', 'Commission', 'Payment'].map((h, i) => (
+                    <th key={h} style={{ padding: '11px 18px', textAlign: (h === 'Commission' || h === 'Sale Price') ? 'right' : 'left', fontSize: '11px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f1f5f9' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {earnings.entries.map((entry, i) => (
-                  <tr
-                    key={entry.finance_id}
-                    style={{ borderBottom: i < earnings.entries.length - 1 ? '1px solid #f8fafc' : 'none', transition: 'background 0.15s' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <td style={{ padding: '14px 18px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                      {new Date(entry.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </td>
-                    <td style={{ padding: '14px 18px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a' }}>{entry.plan_name}</div>
-                      <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>{entry.customer_name}</div>
-                    </td>
-                    <td style={{ padding: '14px 18px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <div style={{ fontSize: '11px', color: '#94a3b8', textDecoration: 'line-through' }}>₹{parseFloat(entry.original_price).toLocaleString('en-IN')}</div>
-                      <div style={{ fontSize: '13px', color: '#0f172a', fontWeight: '500' }}>₹{parseFloat(entry.discounted_price).toLocaleString('en-IN')}</div>
-                    </td>
-                    <td style={{ padding: '14px 18px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <span style={{ display: 'inline-block', background: '#f0fdf4', color: '#16a34a', fontSize: '13px', fontWeight: '700', padding: '4px 10px', borderRadius: '6px' }}>
-                        +₹{parseFloat(entry.commission_earned).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {earnings.entries.map((entry, i) => {
+                  const isPaid = entry.payment_status === 'paid';
+                  return (
+                    <tr
+                      key={entry.finance_id}
+                      style={{ borderBottom: i < earnings.entries.length - 1 ? '1px solid #f8fafc' : 'none', transition: 'background 0.15s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <td style={{ padding: '14px 18px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                        {new Date(entry.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </td>
+                      <td style={{ padding: '14px 18px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a' }}>{entry.plan_name}</div>
+                        <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>{entry.customer_name}</div>
+                      </td>
+                      <td style={{ padding: '14px 18px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '11px', color: '#94a3b8', textDecoration: 'line-through' }}>₹{parseFloat(entry.original_price).toLocaleString('en-IN')}</div>
+                        <div style={{ fontSize: '13px', color: '#0f172a', fontWeight: '500' }}>₹{parseFloat(entry.discounted_price).toLocaleString('en-IN')}</div>
+                      </td>
+                      <td style={{ padding: '14px 18px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <span style={{ display: 'inline-block', background: '#f0fdf4', color: '#16a34a', fontSize: '13px', fontWeight: '700', padding: '4px 10px', borderRadius: '6px' }}>
+                          +₹{parseFloat(entry.commission_earned).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 18px' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: isPaid ? '#f0fdf4' : '#fffbeb', color: isPaid ? '#16a34a' : '#b45309', border: `1px solid ${isPaid ? '#bbf7d0' : '#fde68a'}`, fontSize: '11px', fontWeight: '600', padding: '3px 9px', borderRadius: '20px' }}>
+                          {isPaid ? <CheckCircle size={11} /> : <Clock size={11} />}
+                          {isPaid ? 'Paid' : 'Unpaid'}
+                        </span>
+                        {isPaid && entry.paid_at && (
+                          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+                            {new Date(entry.paid_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

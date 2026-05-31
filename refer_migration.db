@@ -139,8 +139,8 @@ BEGIN
   INSERT INTO public.plan_document_requirements (plan_id, label, field_type, is_optional, sort_order) VALUES
     (p, 'Aadhar Card',         'pdf', FALSE, 1),
     (p, 'Pan Card',            'pdf', FALSE, 2),
-    (p, 'All Bank Statements', 'pdf', FALSE, 3),
-    (p, 'Form 16',             'pdf', FALSE, 4),
+    (p, 'All Bank Statements', 'pdf', TRUE,  3),
+    (p, 'Form 16',             'pdf', TRUE,  4),
     (p, 'Other',               'pdf', TRUE,  5);
 
   -- ITR Business & Profession
@@ -148,10 +148,10 @@ BEGIN
   INSERT INTO public.plan_document_requirements (plan_id, label, field_type, is_optional, sort_order) VALUES
     (p, 'Aadhar Card',                    'pdf', FALSE, 1),
     (p, 'Pan Card',                       'pdf', FALSE, 2),
-    (p, 'All Bank Details',               'pdf', FALSE, 3),
+    (p, 'All Bank Details',               'pdf', TRUE,  3),
     (p, 'GST Returns (if applicable)',    'pdf', TRUE,  4),
-    (p, 'TDS Details (Form 26AS)',        'pdf', FALSE, 5),
-    (p, 'Investment Proofs (Deductions)', 'pdf', FALSE, 6),
+    (p, 'TDS Details (Form 26AS)',        'pdf', TRUE,  5),
+    (p, 'Investment Proofs (Deductions)', 'pdf', TRUE,  6),
     (p, 'Other',                          'pdf', TRUE,  7);
 
   -- ITR Business & Profession With Share Market
@@ -159,11 +159,11 @@ BEGIN
   INSERT INTO public.plan_document_requirements (plan_id, label, field_type, is_optional, sort_order) VALUES
     (p, 'Aadhar Card',                    'pdf', FALSE, 1),
     (p, 'Pan Card',                       'pdf', FALSE, 2),
-    (p, 'All Bank Statements',            'pdf', FALSE, 3),
+    (p, 'All Bank Statements',            'pdf', TRUE,  3),
     (p, 'GST Returns (if applicable)',    'pdf', TRUE,  4),
-    (p, 'TDS Details (Form 26AS)',        'pdf', FALSE, 5),
-    (p, 'Investment Proofs (Deductions)', 'pdf', FALSE, 6),
-    (p, 'All Share Market Details',       'pdf', FALSE, 7),
+    (p, 'TDS Details (Form 26AS)',        'pdf', TRUE,  5),
+    (p, 'Investment Proofs (Deductions)', 'pdf', TRUE,  6),
+    (p, 'All Share Market Details',       'pdf', TRUE,  7),
     (p, 'Other',                          'pdf', TRUE,  8);
 
   -- PAN Card
@@ -232,9 +232,12 @@ CREATE TABLE public.referral_requests (
   customer_mobile VARCHAR(10),
   status          VARCHAR(20) NOT NULL DEFAULT 'pending'
                     CHECK (status IN ('pending', 'approved', 'rejected')),
+  payment_status  VARCHAR(20) NOT NULL DEFAULT 'unpaid'
+                    CHECK (payment_status IN ('unpaid', 'paid')),
   admin_note      TEXT,
   reviewed_by     INTEGER REFERENCES public.users(id) ON DELETE SET NULL,
   reviewed_at     TIMESTAMPTZ,
+  paid_at         TIMESTAMPTZ,
   created_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   updated_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );

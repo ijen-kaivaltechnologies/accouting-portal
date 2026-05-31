@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { Loader2, Eye, X, FileText, CheckCircle, Clock, XCircle, Filter, Plus } from 'lucide-react';
+import { Loader2, Eye, X, FileText, CheckCircle, Clock, XCircle, Filter, Plus, Banknote } from 'lucide-react';
 import { useNavigate } from 'react-router';
 
 const StatusBadge = ({ status }) => {
@@ -12,6 +12,17 @@ const StatusBadge = ({ status }) => {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: c.bg, color: c.color, border: `1px solid ${c.border}`, fontSize: '11px', fontWeight: '600', padding: '3px 9px', borderRadius: '20px' }}>
       <c.Icon size={11} />{c.label}
+    </span>
+  );
+};
+
+const PaymentBadge = ({ status, requestStatus }) => {
+  if (requestStatus !== 'approved') return <span style={{ color: '#cbd5e1', fontSize: '11px' }}>—</span>;
+  const isPaid = status === 'paid';
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: isPaid ? '#f0fdf4' : '#fffbeb', color: isPaid ? '#16a34a' : '#b45309', border: `1px solid ${isPaid ? '#bbf7d0' : '#fde68a'}`, fontSize: '11px', fontWeight: '600', padding: '3px 9px', borderRadius: '20px' }}>
+      {isPaid ? <CheckCircle size={11} /> : <Clock size={11} />}
+      {isPaid ? 'Paid' : 'Unpaid'}
     </span>
   );
 };
@@ -93,8 +104,8 @@ const ReferrerRecord = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#f8fafc' }}>
-                  {['#', 'Plan', 'Customer', 'Date', 'Status', ''].map((h, i) => (
-                    <th key={i} style={{ padding: '10px 18px', textAlign: i === 5 ? 'right' : 'left', fontSize: '11px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>{h}</th>
+                  {['#', 'Plan', 'Customer', 'Date', 'Status', 'Payment', ''].map((h, i) => (
+                    <th key={i} style={{ padding: '10px 18px', textAlign: i === 6 ? 'right' : 'left', fontSize: '11px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -113,6 +124,7 @@ const ReferrerRecord = () => {
                       {new Date(req.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>
                     <td style={{ padding: '13px 18px' }}><StatusBadge status={req.status} /></td>
+                    <td style={{ padding: '13px 18px' }}><PaymentBadge status={req.payment_status} requestStatus={req.status} /></td>
                     <td style={{ padding: '13px 18px', textAlign: 'right' }}>
                       <button onClick={() => openDrawer(req.request_id)}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}
@@ -132,7 +144,7 @@ const ReferrerRecord = () => {
       {isDrawerOpen && <div onClick={closeDrawer} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', zIndex: 40, backdropFilter: 'blur(2px)' }} />}
 
       {/* Detail Panel */}
-      <div style={{ position: 'fixed', top: 0, right: 0, height: '100vh', width: '100%', maxWidth: '400px', background: 'white', zIndex: 50, display: 'flex', flexDirection: 'column', transform: isDrawerOpen ? 'translateX(0)' : 'translateX(100%)', transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)', boxShadow: '-8px 0 40px rgba(0,0,0,0.1)' }}>
+      <div style={{ position: 'fixed', top: 0, right: 0, height: '100vh', width: '100%', maxWidth: '420px', background: 'white', zIndex: 50, display: 'flex', flexDirection: 'column', transform: isDrawerOpen ? 'translateX(0)' : 'translateX(100%)', transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)', boxShadow: '-8px 0 40px rgba(0,0,0,0.1)' }}>
         <div style={{ padding: '18px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>Request Details</h3>
@@ -157,6 +169,34 @@ const ReferrerRecord = () => {
                 </div>
                 <StatusBadge status={selectedRequest.status} />
               </div>
+
+              {/* Payment Status card — only for approved requests */}
+              {selectedRequest.status === 'approved' && (
+                <div style={{ background: selectedRequest.payment_status === 'paid' ? '#f0fdf4' : '#fffbeb', border: `1px solid ${selectedRequest.payment_status === 'paid' ? '#bbf7d0' : '#fde68a'}`, borderRadius: '10px', padding: '13px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                  <Banknote size={18} style={{ color: selectedRequest.payment_status === 'paid' ? '#16a34a' : '#b45309', flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <p style={{ fontSize: '11px', fontWeight: '700', color: selectedRequest.payment_status === 'paid' ? '#15803d' : '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Commission {selectedRequest.payment_status === 'paid' ? 'Paid' : 'Pending Payment'}
+                    </p>
+                    <p style={{ fontSize: '12px', color: selectedRequest.payment_status === 'paid' ? '#16a34a' : '#b45309', marginTop: '2px' }}>
+                      ₹{parseFloat(selectedRequest.commission_amount).toLocaleString('en-IN')}
+                      {selectedRequest.payment_status === 'paid' ? ' credited to your account.' : ' will be paid out soon.'}
+                    </p>
+                    {selectedRequest.payment_status === 'paid' && selectedRequest.paid_at && (
+                      <p style={{ fontSize: '11px', color: '#15803d', marginTop: '4px', opacity: 0.8 }}>
+                        on {new Date(selectedRequest.paid_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {selectedRequest.referrer_note && (
+                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '13px' }}>
+                  <p style={{ fontSize: '11px', fontWeight: '700', color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '5px' }}>Note from Admin</p>
+                  <p style={{ fontSize: '13px', color: '#1e3a8a' }}>{selectedRequest.referrer_note}</p>
+                </div>
+              )}
 
               {selectedRequest.status === 'rejected' && selectedRequest.admin_note && (
                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '13px' }}>
@@ -190,7 +230,7 @@ const ReferrerRecord = () => {
                       </div>
                       {doc.field_type === 'text' ? (
                         <span style={{ fontSize: '11px', color: '#374151', background: '#e2e8f0', padding: '2px 7px', borderRadius: '4px' }}>{doc.text_value}</span>
-                      ) : doc.has_file ? (
+                      ) : (doc.has_file || doc.file_path) ? (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', fontWeight: '600', color: '#16a34a' }}><CheckCircle size={12} />Uploaded</span>
                       ) : (
                         <span style={{ fontSize: '11px', color: '#ef4444' }}>Missing</span>
