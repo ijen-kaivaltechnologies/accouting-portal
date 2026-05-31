@@ -200,6 +200,49 @@ module.exports = function createReferrerRouter(pool) {
           ADD CONSTRAINT finance_entries_referrer_id_fkey FOREIGN KEY (referrer_id) REFERENCES public.referrers(id) ON DELETE CASCADE
       `);
 			console.log("[referrer.routes] Finance entries foreign keys updated.");
+
+			// Update ITR plan requirements: make only Aadhar and Pan mandatory
+			console.log("[referrer.routes] Updating ITR plan requirements...");
+
+			// First, check if this migration has already been applied by checking one plan's requirements
+			const checkMigration = await client.query(`
+        SELECT COUNT(*) as count
+        FROM plan_document_requirements pdr
+        JOIN service_plans sp ON pdr.plan_id = sp.id
+        WHERE sp.name = 'Salary Return'
+          AND pdr.label = 'All Bank Statements'
+          AND pdr.is_optional = true
+      `);
+
+			if (parseInt(checkMigration.rows[0].count) === 0) {
+				// Migration not applied yet, proceed
+				await client.query(`
+          -- Update Salary Return
+          UPDATE public.plan_document_requirements
+          SET is_optional = true
+          WHERE plan_id IN (SELECT id FROM public.service_plans WHERE name = 'Salary Return')
+            AND label NOT IN ('Aadhar Card', 'Pan Card');
+
+          -- Update Business & Profession
+          UPDATE public.plan_document_requirements
+          SET is_optional = true
+          WHERE plan_id IN (SELECT id FROM public.service_plans WHERE name = 'Business & Profession')
+            AND label NOT IN ('Aadhar Card', 'Pan Card');
+
+          -- Update Business & Profession With Share Market
+          UPDATE public.plan_document_requirements
+          SET is_optional = true
+          WHERE plan_id IN (SELECT id FROM public.service_plans WHERE name = 'Business & Profession With Share Market')
+            AND label NOT IN ('Aadhar Card', 'Pan Card');
+        `);
+				console.log(
+					"[referrer.routes] ITR plan requirements updated successfully.",
+				);
+			} else {
+				console.log(
+					"[referrer.routes] ITR plan requirements already up to date.",
+				);
+			}
 		} catch (e) {
 			console.error("[referrer.routes] Auto-migration failed:", e);
 		} finally {
@@ -1343,7 +1386,14 @@ module.exports = function createReferrerRouter(pool) {
 	router.get("/admin/requests", authenticateAdmin, async (req, res) => {
 		const client = await pool.connect();
 		try {
-			const { status, referrer_id, plan_id, payment_status, page = 1, limit = 20 } = req.query;
+			const {
+				status,
+				referrer_id,
+				plan_id,
+				payment_status,
+				page = 1,
+				limit = 20,
+			} = req.query;
 			const offset = (Number(page) - 1) * Number(limit);
 			const params = [];
 			const conditions = [];
